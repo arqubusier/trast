@@ -13,3 +13,15 @@ int n_digits(int i){
     if (i < 1000000000) return 9;
     return 10;
 }
+
+size_t strcpy_limit(char* dst, const char* src, size_t limit){
+    if (limit == 0){
+        return 0;
+    }
+
+    int i = 0;
+    for (;i<limit || src[i] != '\0'; i++){
+        dst[i] = src[i];
+    }
+    return i + 1;
+};
