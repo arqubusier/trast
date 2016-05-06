@@ -1,3 +1,6 @@
+#ifndef TWITTER_H
+#define TWITTER_H
+
 #define TWITTER_URL_HOME_TIMELINE \
     "https://api.twitter.com/1.1/statuses/user_timeline.json"
 #define TWITTER_URL_HOME_TIMELINE_PARAMS\
@@ -14,19 +17,13 @@ typedef struct twitter_home_timeline_params{
         include_entities;
 }twitter_home_timeline_params;
 
-const twitter_home_timeline_params TWITTER_HOME_TIMELINE_PARAMS_DEFAULTS = 
-    {0, 0, 0, 0, 0, 0};
+static const twitter_home_timeline_params TWITTER_HOME_TIMELINE_PARAMS_DEFAULTS = 
+    {11, 12, 13, 14, 15, 999};
 
 #define VAR_2_STR(varname) #varname
 
 //TODO: only send the parameters != -1 to reduce the string needed to be sent
-int twitter_home_timeline(char * dst, int dst_len,
-                          twitter_home_timeline_params params){
-   return snprintf(dst, dst_len, TWITTER_URL_HOME_TIMELINE_PARAMS,
-                   params.count,
-                   params.contributor_details,
-                   params.exclude_replies,
-                   params.include_entities,
-                   params.max_id,
-                   params.since);
-}
+//TODO: make update function that only updates changed values
+int twitter_home_timeline(char* dst, int dst_len,
+                          twitter_home_timeline_params params);
+#endif /* TWITTER_H */
