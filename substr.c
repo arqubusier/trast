@@ -23,7 +23,10 @@ int *substrs_param_szs[SUBSTRS_LEN];
 int substr_init(const int substr_id){
     substrs[substr_id] = malloc(substr_n_params[substr_id]*sizeof(char*));
     substrs_param_szs[substr_id] = malloc(substr_n_params[substr_id]*sizeof(int));
-    memset(substrs_param_szs[substr_id], 0, SUBSTR_N_PARAMS(substr_id)*sizeof(int));
+    int param_id=0;
+    for (; param_id < substr_n_params[substr_id]; param_id++){
+        substrs_param_szs[substr_id][param_id] = 0;
+    }
     return 0;
 }
 
@@ -37,6 +40,11 @@ int substr_set_param_int(const int substr_id, const int param_id, int val){
     /* Reallocate if the buffer is to small */
     size_t new_size = n_digits(val);
     size_t old_size = PARAM_SZ(substr_id,param_id);
+    if (old_size ==  0){
+        new_size = new_size + PARAM_DEFAULT_LEN;
+        SET_PARAM_SZ(substr_id, param_id, new_size);
+        substrs[substr_id][param_id] = malloc(new_size);        
+    }
     if (new_size > old_size){
         new_size = new_size + PARAM_DEFAULT_LEN;
         SET_PARAM_SZ(substr_id, param_id, new_size);
@@ -53,6 +61,11 @@ int substr_set_param_str(const int substr_id, const int param_id,
     size_t str_len = strlen(str);
     size_t new_size = str_len;
     size_t old_size = PARAM_SZ(substr_id, param_id);
+    if (old_size ==  0){
+        new_size = new_size + PARAM_DEFAULT_LEN;
+        SET_PARAM_SZ(substr_id, param_id, new_size);
+        substrs[substr_id][param_id] = malloc(new_size);        
+    }
     if (new_size > old_size){
         new_size = new_size + PARAM_DEFAULT_LEN;
         SET_PARAM_SZ(substr_id, param_id, new_size);
@@ -69,6 +82,7 @@ size_t substr_size(const int substr_id){
     int param_id = 0;
     for (; param_id < substr_n_params[substr_id]; param_id++){
         total_size += PARAM_SZ(substr_id, param_id);
+        printf("TOTAL_SIZE %d \n", total_size);
     }
     return total_size;
 }
@@ -85,6 +99,7 @@ int substr_assemble(char* dst, const int substr_id, size_t dst_len){
     for (; param_id < substr_n_params[substr_id] &&
                 offs<dst_len; param_id++){
         offs += strcpy_limit(&dst[offs], substr[param_id], param_szs[param_id]); 
+        printf("offs %d\n", offs);
     }
 
     dst[offs] = '\0';

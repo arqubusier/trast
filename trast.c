@@ -26,6 +26,10 @@
 
 #include "ssid_config.h"
 
+#include "substr.h"
+#include "substr_conf.h"
+#include "oauth.h"
+
 /* mbedtls/config.h MUST appear before all other mbedtls headers, or
    you'll get the default config.
 
@@ -83,6 +87,75 @@ static void my_debug(void *ctx, int level,
     printf("%s:%04d: %s", file, line, str);
 }
 #endif
+
+void setup_home_base(){
+    char head[] = "GET&https%%3A%%2F%%2Fapi.twitter.com%%2F1.1%%2Fstatuses%%2Fhome_timeline.json&"; 
+    char c_key[] = "oauth_consumer_key%%3D";
+    char c_key_val[] = OAUTH_CONSUMER_KEY;
+    char nonce[] =  "%%26oauth_nonce%%3D";
+    //char nonce_val[] = "";
+    char sign_met[] = "%%26oauth_signature_method%%3DHMAC-SHA1";
+    char time_stamp[] = "%%26oauth_timestamp%%3D";
+    //int  time_stamp_val =   0;
+    char token[]  = "%%26oauth_token%%3D";
+    char token_val[]= OAUTH_TOKEN;
+    char version[] = "%%26oauth_version%%3D1.0";
+    substr_init(HOME_BASE);
+    substr_set_param_str(HOME_BASE, HOME_BASE_HEAD, head);
+    substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_CONSUMER_KEY, c_key);
+    substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_CONSUMER_KEY_VAL, c_key_val);
+    substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_NONCE, nonce);
+    //substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_NONCE_VAL, nonce_val);
+    substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_TIMESTAMP, time_stamp);
+    //substr_set_param_int(HOME_BASE, HOME_BASE_OAUTH_TIMESTAMP_VAL, time_stamp_val);
+    substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_TOKEN, token);
+    substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_TOKEN_VAL, token_val);
+    substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_VERSION, version);
+    substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_SIGNATURE_METHOD, sign_met);
+}
+
+void setup_home_auth(){
+    char head[] = "Authorization: OAuth "; 
+    char sign[] = "\", oauth_signature=\"";
+    //char sign_val[] = "c8CFWImxzs0aVsXnrBSgAIVNZeI%3D";
+    char c_key[] = "oauth_consumer_key=\"";
+    char c_key_val[] = OAUTH_CONSUMER_KEY;
+    char nonce[] =  "\", oauth_nonce=\"";
+    //char nonce_val[] = ""; 
+    char sign_met[] = "\",oauth_signature_method=\"3DHMAC-SHA1\",";
+    char time_stamp[] = "oauth_timestamp=\"";
+    //int  time_stamp_val =   0;
+    char token[]  = "\", oauth_token=\"";
+    char token_val[]= OAUTH_TOKEN;
+    char version[] = "\"oauth_version=\"1.0\"";
+    substr_init(HOME_AUTH);
+    substr_set_param_str(HOME_AUTH, HOME_AUTH_HEAD, head);
+    substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_CONSUMER_KEY, c_key);
+    substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_CONSUMER_KEY_VAL, c_key_val);
+    substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_NONCE, nonce);
+    //substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_NONCE_VAL, nonce_val);
+    substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_TIMESTAMP, time_stamp);
+    //substr_set_param_int(HOME_AUTH, HOME_AUTH_OAUTH_TIMESTAMP_VAL, time_stamp_val);
+    substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_TOKEN, token);
+    substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_TOKEN_VAL, token_val);
+    substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_VERSION, version);
+    substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_SIGNATURE_METHOD, sign_met);
+    substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_SIGNATURE, sign);
+    //substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_SIGNATURE_VAL, sign_val);
+
+}
+
+void setup_home_start(){
+    char head[] = "https://api.twitter.com/1.1/statuses/home_timeline.json";
+    char count[] = "?count=";
+    int count_val = 5;
+    substr_init(HOME_START);
+    substr_set_param_str(HOME_START, HOME_START_HEAD, head);
+    substr_set_param_str(HOME_START, HOME_START_COUNT, count);
+    substr_set_param_int(HOME_START, HOME_START_COUNT_VAL, count_val);
+
+}
+
 
 void http_get_task(void *pvParameters)
 {
@@ -325,16 +398,42 @@ void user_init(void)
     uart_set_baud(0, 115200);
     printf("SDK version:%s\n", sdk_system_get_sdk_version());
 
+    setup_home_start();
+    setup_home_base();
+    setup_home_auth();
+
+
+    int start_len = substr_size(HOME_START);
+    int auth_len = substr_size(HOME_AUTH);
+    int base_len = substr_size(HOME_BASE);
+
+    char start[start_len];
+    char auth[auth_len];
+    char base[base_len];
+
+    printf("start_len %d\n", start_len); 
+    substr_assemble(start, HOME_START, start_len);
+    substr_assemble(auth, HOME_AUTH, auth_len);
+    substr_assemble(base, HOME_BASE, base_len);
+
+    printf(start);
+    printf("\n");
+    printf(auth);
+    printf("\n");
+    printf(base);
+    printf("\n");
+
+    
+
 
     mbedtls_md_info_t sha_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
 	mbedtls_md_hmac(&sha_info, ouath_key, ouath_key_len, ouath_base_str,
                     ouath_base_str_len, ouath_sign);
-    /*
+
     struct sdk_station_config config = {
         .ssid = WIFI_SSID,
         .password = WIFI_PASS,
     };
-    */
 
     /* required to call wifi_set_opmode before station_set_config */
     /*
