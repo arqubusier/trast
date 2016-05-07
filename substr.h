@@ -1,5 +1,5 @@
-#ifndef HTTP_H
-#define HTTP_H
+#ifndef SUBSTR_H
+#define SUBSTR_H
 
 #include <stddef.h>
 
@@ -14,4 +14,4 @@ size_t substr_size(const int substr_id);
 int substr_assemble(char* dst, const int substr_id, size_t dst_len);
 int substr_combine(int* substr_ids);
 
-#endif/* HTTP_H */
+#endif/* SUBSTR_H */

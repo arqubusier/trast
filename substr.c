@@ -1,5 +1,5 @@
-#include "http.h"
-#include "http_conf.h"
+#include "substr.h"
+#include "substr_conf.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -52,6 +52,9 @@ enum oauth_home_timeline_base_str{
 };
 
 enum oauth_home_timeline_auth_header{
+    HOME_AUTH_HEAD,
+    HOME_AUTH_OAUTH_CONSUMER_KEY,
+    HOME_AUTH_OAUTH_CONSUMER_KEY_VAL,
     HOME_AUTH_OAUTH_NONCE,
     HOME_AUTH_OAUTH_NONCE_VAL,
     HOME_AUTH_OAUTH_SIGNATURE,
@@ -72,4 +75,3 @@ enum substr_ids{
 };
 
 #define SUBSTR_IDS {HOME_START_N, HOME_BASE_N, HOME_AUTH_N}
-
