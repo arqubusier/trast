@@ -19,7 +19,7 @@ enum twitter_statuses_home_timeline_start{
     HOME_START_CONTRIBUTOR_DETAILS_VAL,
     HOME_START_INCLUDE_ENTITIES,
     HOME_START_INCLUDE_ENTITIES_VAL,
-    HOME_START
+    HOME_START_N
 };
 
 enum oauth_home_timeline_base_str{
@@ -48,7 +48,7 @@ enum oauth_home_timeline_base_str{
     HOME_BASE_SINCE_ID_VAL,
     HOME_BASE_TRIM_USER,
     HOME_BASE_TRIM_USER_VAL,
-    HOME_BASE
+    HOME_BASE_N
 };
 
 enum oauth_home_timeline_auth_header{
@@ -62,8 +62,14 @@ enum oauth_home_timeline_auth_header{
     HOME_AUTH_OAUTH_TOKEN,
     HOME_AUTH_OAUTH_TOKEN_VAL,
     HOME_AUTH_OAUTH_VERSION,
+    HOME_AUTH_N
+};
+
+enum substr_ids{
+    HOME_START,
+    HOME_BASE,
     HOME_AUTH
 };
 
-#define SUBSTR_IDS {HOME_START, HOME_BASE, HOME_AUTH}
+#define SUBSTR_IDS {HOME_START_N, HOME_BASE_N, HOME_AUTH_N}
 

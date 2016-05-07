@@ -81,10 +81,9 @@ int substr_assemble(char* dst, const int substr_id, size_t dst_len){
 
     int param_id = 0;
     int offs = 0;
-    for (; param_id < substr_n_params[substr_id] ||
-            offs<dst_len
-         ; param_id++){
-        offs = strcpy_limit(&dst[offs], substr[param_id], param_szs[param_id]); 
+    for (; param_id < substr_n_params[substr_id] &&
+                offs<dst_len; param_id++){
+        offs += strcpy_limit(&dst[offs], substr[param_id], param_szs[param_id]); 
     }
 
     dst[offs] = '\0';
