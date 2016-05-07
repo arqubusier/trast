@@ -49,7 +49,8 @@ int substr_set_param_int(const int substr_id, const int param_id, int val){
 }
 
 int substr_set_param_str(const int substr_id, const int param_id,
-                         char* str, size_t str_len){
+                         const char* str){
+    size_t str_len = strlen(str);
     size_t new_size = str_len;
     size_t old_size = PARAM_SZ(substr_id, param_id);
     if (new_size > old_size){
