@@ -46,6 +46,8 @@
 #include "mbedtls/certs.h"
 #include "mbedtls/md.h"
 
+#include <time.h>
+
 #define WEB_SERVER "www.howsmyssl.com"
 #define WEB_PORT "443"
 #define WEB_URL "https://www.howsmyssl.com/a/check"
@@ -93,10 +95,11 @@ void setup_home_base(){
     char c_key[] = "oauth_consumer_key%%3D";
     char c_key_val[] = OAUTH_CONSUMER_KEY;
     char nonce[] =  "%%26oauth_nonce%%3D";
-    //char nonce_val[] = "";
+    char nonce_val[OAUTH_NONCE_LEN+1];
+    nonce_val[OAUTH_NONCE_LEN] = '\0';
     char sign_met[] = "%%26oauth_signature_method%%3DHMAC-SHA1";
     char time_stamp[] = "%%26oauth_timestamp%%3D";
-    //int  time_stamp_val =   0;
+    int  time_stamp_val = (int) time(NULL);
     char token[]  = "%%26oauth_token%%3D";
     char token_val[]= OAUTH_TOKEN;
     char version[] = "%%26oauth_version%%3D1.0";
@@ -105,9 +108,9 @@ void setup_home_base(){
     substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_CONSUMER_KEY, c_key);
     substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_CONSUMER_KEY_VAL, c_key_val);
     substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_NONCE, nonce);
-    //substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_NONCE_VAL, nonce_val);
+    substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_NONCE_VAL, nonce_val);
     substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_TIMESTAMP, time_stamp);
-    //substr_set_param_int(HOME_BASE, HOME_BASE_OAUTH_TIMESTAMP_VAL, time_stamp_val);
+    substr_set_param_int(HOME_BASE, HOME_BASE_OAUTH_TIMESTAMP_VAL, time_stamp_val);
     substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_TOKEN, token);
     substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_TOKEN_VAL, token_val);
     substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_VERSION, version);
@@ -117,14 +120,15 @@ void setup_home_base(){
 void setup_home_auth(){
     char head[] = "Authorization: OAuth "; 
     char sign[] = "\", oauth_signature=\"";
-    //char sign_val[] = "c8CFWImxzs0aVsXnrBSgAIVNZeI%3D";
+    char sign_val[] = "c8CFWImxzs0aVsXnrBSgAIVNZeI%3D";
     char c_key[] = "oauth_consumer_key=\"";
     char c_key_val[] = OAUTH_CONSUMER_KEY;
     char nonce[] =  "\", oauth_nonce=\"";
-    //char nonce_val[] = ""; 
+    char nonce_val[OAUTH_NONCE_LEN+1];
+    nonce_val[OAUTH_NONCE_LEN] = '\0';
     char sign_met[] = "\",oauth_signature_method=\"3DHMAC-SHA1\",";
     char time_stamp[] = "oauth_timestamp=\"";
-    //int  time_stamp_val =   0;
+    int  time_stamp_val =   (int) time(NULL);
     char token[]  = "\", oauth_token=\"";
     char token_val[]= OAUTH_TOKEN;
     char version[] = "\"oauth_version=\"1.0\"";
@@ -133,15 +137,15 @@ void setup_home_auth(){
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_CONSUMER_KEY, c_key);
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_CONSUMER_KEY_VAL, c_key_val);
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_NONCE, nonce);
-    //substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_NONCE_VAL, nonce_val);
+    substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_NONCE_VAL, nonce_val);
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_TIMESTAMP, time_stamp);
-    //substr_set_param_int(HOME_AUTH, HOME_AUTH_OAUTH_TIMESTAMP_VAL, time_stamp_val);
+    substr_set_param_int(HOME_AUTH, HOME_AUTH_OAUTH_TIMESTAMP_VAL, time_stamp_val);
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_TOKEN, token);
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_TOKEN_VAL, token_val);
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_VERSION, version);
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_SIGNATURE_METHOD, sign_met);
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_SIGNATURE, sign);
-    //substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_SIGNATURE_VAL, sign_val);
+    substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_SIGNATURE_VAL, sign_val);
 
 }
 
@@ -409,9 +413,13 @@ void user_init(void)
 
     char start[start_len];
     char auth[auth_len];
-    char base[base_len];
+    //base_str is padded with '=' to comply with base64 encoding.
+    char base[base_len + pad_len];
 
-    printf("start_len %d\n", start_len); 
+    char rnd[OAUTH_NONCE_LEN + 1];
+    alpha_num_rand(rnd, OAUTH_NONCE_LEN);
+    substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_NONCE_VAL, rnd);
+
     substr_assemble(start, HOME_START, start_len);
     substr_assemble(auth, HOME_AUTH, auth_len);
     substr_assemble(base, HOME_BASE, base_len);

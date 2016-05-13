@@ -82,7 +82,6 @@ size_t substr_size(const int substr_id){
     int param_id = 0;
     for (; param_id < substr_n_params[substr_id]; param_id++){
         total_size += PARAM_SZ(substr_id, param_id);
-        printf("TOTAL_SIZE %d \n", total_size);
     }
     return total_size;
 }
@@ -108,4 +107,8 @@ int substr_assemble(char* dst, const int substr_id, size_t dst_len){
 
 int substr_combine(int* substr_ids){
     return 0;
+}
+
+const unsigned char* substr_get_param(const int substr_id, const int param_id){
+    return substrs[substr_id][param_id];
 }
