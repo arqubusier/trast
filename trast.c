@@ -46,7 +46,7 @@
 #include "mbedtls/certs.h"
 #include "mbedtls/md.h"
 
-#include <time.h>
+//#include <time.h>
 
 #define WEB_SERVER "www.howsmyssl.com"
 #define WEB_PORT "443"
@@ -99,7 +99,8 @@ void setup_home_base(){
     nonce_val[OAUTH_NONCE_LEN] = '\0';
     char sign_met[] = "%%26oauth_signature_method%%3DHMAC-SHA1";
     char time_stamp[] = "%%26oauth_timestamp%%3D";
-    int  time_stamp_val = (int) time(NULL);
+    //int  time_stamp_val = (int) time(NULL);
+    int  time_stamp_val = 0;
     char token[]  = "%%26oauth_token%%3D";
     char token_val[]= OAUTH_TOKEN;
     char version[] = "%%26oauth_version%%3D1.0";
@@ -128,7 +129,8 @@ void setup_home_auth(){
     nonce_val[OAUTH_NONCE_LEN] = '\0';
     char sign_met[] = "\",oauth_signature_method=\"3DHMAC-SHA1\",";
     char time_stamp[] = "oauth_timestamp=\"";
-    int  time_stamp_val =   (int) time(NULL);
+    //int  time_stamp_val =   (int) time(NULL);
+    int  time_stamp_val = 0;
     char token[]  = "\", oauth_token=\"";
     char token_val[]= OAUTH_TOKEN;
     char version[] = "\"oauth_version=\"1.0\"";
@@ -407,16 +409,16 @@ void user_init(void)
     setup_home_auth();
 
 
-    int start_len = substr_size(HOME_START);
-    int auth_len = substr_size(HOME_AUTH);
-    int base_len = substr_size(HOME_BASE);
+    size_t start_len = substr_size(HOME_START);
+    size_t auth_len = substr_size(HOME_AUTH);
+    size_t base_len = substr_size(HOME_BASE);
 
     char start[start_len];
     char auth[auth_len];
-    //base_str is padded with '=' to comply with base64 encoding.
-    char base[base_len + pad_len];
+    char base[base_len];
 
     char rnd[OAUTH_NONCE_LEN + 1];
+    rnd[OAUTH_NONCE_LEN] = '\0';
     alpha_num_rand(rnd, OAUTH_NONCE_LEN);
     substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_NONCE_VAL, rnd);
 
@@ -431,12 +433,31 @@ void user_init(void)
     printf(base);
     printf("\n");
 
+    size_t sign_key_len = OAUTH_CONSUMER_SECRET_LEN
+                          + OAUTH_TOKEN_SECRET_LEN + 1;
+    unsigned char sign_key[OAUTH_CONSUMER_SECRET_LEN + 1 + OAUTH_TOKEN_SECRET_LEN + 1] = 
+            OAUTH_CONSUMER_SECRET "&" OAUTH_TOKEN_SECRET;
+            sign_key[OAUTH_CONSUMER_SECRET_LEN + 1 + OAUTH_TOKEN_SECRET_LEN] = '\0';
+    unsigned char sign[SHA1_LEN];
+
+    const mbedtls_md_info_t *sha_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
+	mbedtls_md_hmac(sha_info, sign_key, sign_key_len, (unsigned char*) base,
+                    base_len, sign);
+
+    const size_t SIGN64_LEN = BASE64_LEN(SHA1_LEN);
+    char sign64[SIGN64_LEN + 1];
+    printf("sign %02X %02X %02X\n", sign[0], sign[1], sign[2]);
+    base64_encode(sign64, SIGN64_LEN, sign, SHA1_LEN);
+    sign64[SIGN64_LEN] = '\0';
+
+    printf("sign %02X %02X %02X\n", sign[0], sign[1], sign[2]);
+    print_hex(sign, SHA1_LEN);
+    printf("\n");
+    printf(sign_key);
+    printf("\n");
+    printf(sign64);
+    printf("\n");
     
-
-
-   // mbedtls_md_info_t sha_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
-   // mbedtls_md_hmac(&sha_info, ouath_key, ouath_key_len, ouath_base_str,
-                    ouath_base_str_len, ouath_sign);
 
     struct sdk_station_config config = {
         .ssid = WIFI_SSID,
