@@ -434,8 +434,8 @@ void user_init(void)
     
 
 
-    mbedtls_md_info_t sha_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
-	mbedtls_md_hmac(&sha_info, ouath_key, ouath_key_len, ouath_base_str,
+   // mbedtls_md_info_t sha_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
+   // mbedtls_md_hmac(&sha_info, ouath_key, ouath_key_len, ouath_base_str,
                     ouath_base_str_len, ouath_sign);
 
     struct sdk_station_config config = {
