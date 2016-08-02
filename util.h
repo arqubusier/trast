@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #define SHA1_LEN 20
+// the number of 'empty' chars in the last triplet of the input
 #define BASE64_PAD(len) ((3-len%3)%3)
 #define BASE64_LEN(len) (((len + BASE64_PAD(len))/3)*4)
 

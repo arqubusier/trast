@@ -91,11 +91,8 @@ void base64_encode(char* dst, size_t dst_len,
     int dst_offs = 0, src_offs = 0;
     uint pad = BASE64_PAD(src_len);
 
-    printf("src %02X %02X %02X\n", src[0], src[1], src[2]);
-    for(; src_offs < src_len-pad; src_offs+=3, dst_offs+=4){
-        printf("src %02X %02X %02X\n", src[src_offs], src[src_offs+1], src[src_offs+2]);
+    for(; src_offs < (src_len/3)*3; src_offs+=3, dst_offs+=4){
         dst[dst_offs] = BASE64(src[src_offs] >> 2);
-        printf("%d\n", dst[dst_offs]);
         dst[dst_offs + 1] = BASE64(
             0x3F & ((src[src_offs] << 4) | (src[src_offs + 1] >> 4)));
         dst[dst_offs + 2] = BASE64(
@@ -103,13 +100,15 @@ void base64_encode(char* dst, size_t dst_len,
         dst[dst_offs + 3] = BASE64(src[src_offs+2] & 0x3F);
     }
 
-
+    // If the input is not evenly divisible by 3 it is handle
+    // the last bytes are handled separately.
     if (pad > 0){
-        int i=0, src_offs=src_len-3;
+        int i=0;
         char remainder[3] = {0, 0, 0};
         for (;i < src_len%3; i++){
             remainder[i] = src[src_offs + i];
         }
+        print_hex(remainder, 3);
 
         dst[dst_offs] = BASE64(remainder[0] >> 2);
         dst[dst_offs + 1] = BASE64(
