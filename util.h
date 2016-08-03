@@ -29,5 +29,6 @@ void alpha_num_rand(char* buf, const int buf_len);
 void base64_encode(char* dst, size_t dst_len,
                    const unsigned char* src, size_t src_len);
 void print_hex(unsigned char* buf, uint buf_len);
+void print_str(const char* str);
 
 #endif /* UTIL_H */

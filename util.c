@@ -75,6 +75,7 @@ void percent_encode(char *dst, const char *src){
 size_t base64_pad_len(const int src_size){
     size_t total_size = src_size + src_size%3;
     total_size = (total_size/3)*4;
+    return total_size;
 }
 
 /*
@@ -108,7 +109,6 @@ void base64_encode(char* dst, size_t dst_len,
         for (;i < src_len%3; i++){
             remainder[i] = src[src_offs + i];
         }
-        print_hex(remainder, 3);
 
         dst[dst_offs] = BASE64(remainder[0] >> 2);
         dst[dst_offs + 1] = BASE64(
@@ -147,4 +147,8 @@ void print_hex(unsigned char* buf, uint buf_len){
         printf("%02X", buf[i]);
     }
     printf("\n");
+}
+
+void print_str(const char* str){
+  printf("%s\n", str);
 }

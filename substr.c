@@ -45,7 +45,7 @@ int substr_set_param_int(const int substr_id, const int param_id, int val){
         SET_PARAM_SZ(substr_id, param_id, new_size);
         substrs[substr_id][param_id] = malloc(new_size);        
     }
-    if (new_size > old_size){
+    else if (new_size >= old_size){
         new_size = new_size + PARAM_DEFAULT_LEN;
         SET_PARAM_SZ(substr_id, param_id, new_size);
         substrs[substr_id][param_id] = realloc(
@@ -53,6 +53,8 @@ int substr_set_param_int(const int substr_id, const int param_id, int val){
     }
 
     sprintf(substrs[substr_id][param_id], "%d", val);  
+    substrs[substr_id][param_id][new_size] = '\0';
+
     return 0;
 }
 
@@ -61,12 +63,13 @@ int substr_set_param_str(const int substr_id, const int param_id,
     size_t str_len = strlen(str);
     size_t new_size = str_len;
     size_t old_size = PARAM_SZ(substr_id, param_id);
+
     if (old_size ==  0){
         new_size = new_size + PARAM_DEFAULT_LEN;
         SET_PARAM_SZ(substr_id, param_id, new_size);
         substrs[substr_id][param_id] = malloc(new_size);        
     }
-    if (new_size > old_size){
+    else if (new_size >= old_size){
         new_size = new_size + PARAM_DEFAULT_LEN;
         SET_PARAM_SZ(substr_id, param_id, new_size);
         substrs[substr_id][param_id] = realloc(
@@ -74,6 +77,8 @@ int substr_set_param_str(const int substr_id, const int param_id,
     }
     
     strncpy(substrs[substr_id][param_id], str, str_len);
+    substrs[substr_id][param_id][str_len] = '\0';
+
     return 0;
 }
 
@@ -86,19 +91,30 @@ size_t substr_size(const int substr_id){
     return total_size;
 }
 
+size_t substr_len(const int substr_id){
+    size_t total_size = 0;
+    int param_id = 0;
+
+    for (; param_id < substr_n_params[substr_id]; param_id++){
+        size_t max = PARAM_SZ(substr_id, param_id);
+        total_size += strnlen(substrs[substr_id][param_id], max);
+        printf("par %d total size %d\n", param_id, total_size);
+    }
+    return total_size;
+}
+
 /*
  * dst must have at least one character
  */
-int substr_assemble(char* dst, const int substr_id, size_t dst_len){
+int substr_assemble(char* dst, const int substr_id, size_t dst_sz){
     char **substr = substrs[substr_id];
     int *param_szs = substrs_param_szs[substr_id];
 
     int param_id = 0;
     int offs = 0;
     for (; param_id < substr_n_params[substr_id] &&
-                offs<dst_len; param_id++){
+                offs<dst_sz; param_id++){
         offs += strcpy_limit(&dst[offs], substr[param_id], param_szs[param_id]); 
-        printf("offs %d\n", offs);
     }
 
     dst[offs] = '\0';
@@ -109,6 +125,6 @@ int substr_combine(int* substr_ids){
     return 0;
 }
 
-const unsigned char* substr_get_param(const int substr_id, const int param_id){
+const char* substr_get_param(const int substr_id, const int param_id){
     return substrs[substr_id][param_id];
 }

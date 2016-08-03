@@ -91,19 +91,20 @@ static void my_debug(void *ctx, int level,
 #endif
 
 void setup_home_base(){
-    char head[] = "GET&https%%3A%%2F%%2Fapi.twitter.com%%2F1.1%%2Fstatuses%%2Fhome_timeline.json&"; 
-    char c_key[] = "oauth_consumer_key%%3D";
+    char head[] = "GET&https%3A%2F%2Fapi.twitter.com%2F1.1%2Fstatuses%2Fhome_timeline.json&"; 
+    char c_key[] = "oauth_consumer_key%3D";
     char c_key_val[] = OAUTH_CONSUMER_KEY;
-    char nonce[] =  "%%26oauth_nonce%%3D";
+    char nonce[] =  "%26oauth_nonce%3D";
     char nonce_val[OAUTH_NONCE_LEN+1];
+    alpha_num_rand(nonce_val, OAUTH_NONCE_LEN);
     nonce_val[OAUTH_NONCE_LEN] = '\0';
-    char sign_met[] = "%%26oauth_signature_method%%3DHMAC-SHA1";
-    char time_stamp[] = "%%26oauth_timestamp%%3D";
+    char sign_met[] = "%26oauth_signature_method%3DHMAC-SHA1";
+    char time_stamp[] = "%26oauth_timestamp%3D";
     //int  time_stamp_val = (int) time(NULL);
     int  time_stamp_val = 0;
-    char token[]  = "%%26oauth_token%%3D";
+    char token[]  = "%26oauth_token%3D";
     char token_val[]= OAUTH_TOKEN;
-    char version[] = "%%26oauth_version%%3D1.0";
+    char version[] = "%26oauth_version%3D1.0";
     substr_init(HOME_BASE);
     substr_set_param_str(HOME_BASE, HOME_BASE_HEAD, head);
     substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_CONSUMER_KEY, c_key);
@@ -409,33 +410,29 @@ void user_init(void)
     setup_home_auth();
 
 
-    size_t start_len = substr_size(HOME_START);
-    size_t auth_len = substr_size(HOME_AUTH);
-    size_t base_len = substr_size(HOME_BASE);
-
+    size_t start_len = substr_len(HOME_START);
+    size_t auth_len = substr_len(HOME_AUTH);
+    size_t base_len = substr_len(HOME_BASE);
     char start[start_len];
     char auth[auth_len];
     char base[base_len];
 
     char rnd[OAUTH_NONCE_LEN + 1];
-    rnd[OAUTH_NONCE_LEN] = '\0';
     alpha_num_rand(rnd, OAUTH_NONCE_LEN);
+    rnd[OAUTH_NONCE_LEN] = '\0';
     substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_NONCE_VAL, rnd);
 
     substr_assemble(start, HOME_START, start_len);
     substr_assemble(auth, HOME_AUTH, auth_len);
     substr_assemble(base, HOME_BASE, base_len);
 
-    printf(start);
-    printf("\n");
-    printf(auth);
-    printf("\n");
-    printf(base);
-    printf("\n");
+    print_str(start);
+    print_str(auth);
+    print_str(base);
 
     size_t sign_key_len = OAUTH_CONSUMER_SECRET_LEN
                           + OAUTH_TOKEN_SECRET_LEN + 1;
-    unsigned char sign_key[OAUTH_CONSUMER_SECRET_LEN + 1 + OAUTH_TOKEN_SECRET_LEN + 1] = 
+    unsigned char sign_key[] = 
             OAUTH_CONSUMER_SECRET "&" OAUTH_TOKEN_SECRET;
             sign_key[OAUTH_CONSUMER_SECRET_LEN + 1 + OAUTH_TOKEN_SECRET_LEN] = '\0';
     unsigned char sign[SHA1_LEN];
@@ -443,25 +440,22 @@ void user_init(void)
     const mbedtls_md_info_t *sha_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
 	mbedtls_md_hmac(sha_info, sign_key, sign_key_len, (unsigned char*) base,
                     base_len, sign);
+    printf("size base %d\n", base_len);
+    printf("size key %d\n", sign_key_len);
 
     const size_t SIGN64_LEN = BASE64_LEN(SHA1_LEN);
     char sign64[SIGN64_LEN + 1];
-    printf("sign %02X %02X %02X\n", sign[0], sign[1], sign[2]);
     base64_encode(sign64, SIGN64_LEN, sign, SHA1_LEN);
     sign64[SIGN64_LEN] = '\0';
 
-    printf("sign %02X %02X %02X\n", sign[0], sign[1], sign[2]);
     print_hex(sign, SHA1_LEN);
-    printf("\n");
-    printf(sign_key);
-    printf("\n");
-    printf(sign64);
-    printf("\n");
+    print_str(sign_key);
+    print_str(sign64);
     
 
     struct sdk_station_config config = {
         .ssid = WIFI_SSID,
-        .password = WIFI_PASS,
+        .password = WIFI_PASS
     };
 
     /* required to call wifi_set_opmode before station_set_config */
