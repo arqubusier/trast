@@ -9,6 +9,7 @@
 int substr_init(const int substr_id);
 int substr_free(const int substr_id);
 int substr_set_param_int(const int substr_id,const int param, int val);
+int substr_set_param_long(const int substr_id,const int param, long val);
 int substr_set_param_str(const int substr_id,const int param, const char* str);
 const char* substr_get_param(const int substr_id,const int param);
 size_t substr_size(const int substr_id);

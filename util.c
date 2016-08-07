@@ -11,7 +11,7 @@ const int  ALPHA_NUM_LEN = 62;
 
 #define BASE64(i) BASE64_ALPHABET[i] 
 
-int n_digits(int i){
+int n_digits(long i){
     if (i < 0) i = -i + 1;
     if (i <         10) return 1;
     if (i <        100) return 2;

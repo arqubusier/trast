@@ -48,11 +48,25 @@
 
 //#include <time.h>
 
+/* Add extras/sntp component to makefile for this include to work */
+#include <sntp.h>
+#include <time.h>
+
+#define SNTP_SERVERS 	"ntp1.sptime.se", "ntp2.sptime.se",\
+                        "ntp3.sptime.se", "ntp4.sptime.se"
+#define SNTP_UPDATE_INTERVAL 15000 //in ms
+
+#define vTaskDelayMs(ms)	vTaskDelay((ms)/portTICK_RATE_MS)
+#define UNUSED_ARG(x)	(void)x
+
 #define WEB_SERVER "www.howsmyssl.com"
 #define WEB_PORT "443"
 #define WEB_URL "https://www.howsmyssl.com/a/check"
 
 #define GET_REQUEST "GET "WEB_URL" HTTP/1.1\nHost: "WEB_SERVER"\n\n"
+
+size_t sign_key_len = 0;
+char *sign_key;
 
 /* Root cert for howsmyssl.com, stored in cert.c */
 extern const char *server_root_cert;
@@ -163,11 +177,73 @@ void setup_home_start(){
 
 }
 
+/* Update nonce, timestamp, sign */
+void update_query(){
+    char rnd[OAUTH_NONCE_LEN + 1];
+    alpha_num_rand(rnd, OAUTH_NONCE_LEN);
+    rnd[OAUTH_NONCE_LEN] = '\0';
+    substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_NONCE_VAL, rnd);
+    substr_set_param_str(HOME_AUTH, HOME_AUHT_OAUTH_NONCE_VAL, rnd);
+
+    time_t time_stamp = time(NULL);
+    substr_set_param_long(HOME_BASE, HOME_BASE_OAUTH_TIMESTAMP_VAL,
+                          (long) time_stamp);
+    substr_set_param_long(HOME_AUTH, HOME_AUTH_OAUTH_TIMESTAMP_VAL,
+                          (long) time_stamp);
+
+    size_t base_len = substr_len(HOME_BASE);
+    char base[base_len];
+    substr_assemble(base, HOME_BASE, base_len);
+
+    unsigned char sign[SHA1_LEN];
+    const mbedtls_md_info_t *sha_info = mbedtls_md_info_from_type(
+                                            MBEDTLS_MD_SHA1);
+	mbedtls_md_hmac(sha_info, sign_key, sign_key_len, (unsigned char*) base,
+                    base_len, sign);
+
+    const size_t SIGN64_LEN = BASE64_LEN(SHA1_LEN);
+    char sign64[SIGN64_LEN + 1];
+    base64_encode(sign64, SIGN64_LEN, sign, SHA1_LEN);
+    sign64[SIGN64_LEN] = '\0';
+    substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_SIGNATURE_VAL,
+                         sign64);
+}
+
+void update_sign_key(){
+    size_t new_len = OAUTH_CONSUMER_SECRET_LEN
+                          + OAUTH_TOKEN_SECRET_LEN + 1;
+    if (new_len > sign_key_len)
+        realloc((void*)sign_key, new_len + 1);
+
+    sign_key = OAUTH_CONSUMER_SECRET "&" OAUTH_TOKEN_SECRET;
+    sign_key[OAUTH_CONSUMER_SECRET_LEN + 1 + OAUTH_TOKEN_SECRET_LEN] = '\0';
+}
 
 void http_get_task(void *pvParameters)
 {
+    //TODO REMOVE!!!
+	UNUSED_ARG(pvParameters);
+
     int successes = 0, failures = 0, ret;
     printf("HTTP get task starting...\n");
+
+    /* sntp update */
+	char *servers[] = {SNTP_SERVERS};
+    
+	/* Wait until we have joined AP and are assigned an IP */
+	while (sdk_wifi_station_get_connect_status() != STATION_GOT_IP) {
+		vTaskDelayMs(100);
+	}
+
+	/* Start SNTP */
+	printf("Starting SNTP... ");
+	sntp_set_update_delay(SNTP_UPDATE_INTERVAL);
+	/* Set GMT+1 zone, daylight savings off */
+	const struct timezone tz = {1*60, 1};
+	sntp_initialize(&tz);
+	/* Servers must be configured right after initialization */
+	sntp_set_servers(servers, sizeof(servers) / sizeof(char*));
+	printf("SNTP config complete\n");
 
     uint32_t flags;
     unsigned char buf[1024];
@@ -266,6 +342,20 @@ void http_get_task(void *pvParameters)
         dns_err = netconn_gethostbyname(WEB_SERVER, &host_ip);
     } while(dns_err != ERR_OK);
     printf("done.\n");
+
+    /* Set up twitter parameters */
+    setup_home_start();
+    setup_home_base();
+    setup_home_auth();
+
+
+    size_t start_len = substr_len(HOME_START);
+    size_t auth_len = substr_len(HOME_AUTH);
+    char start[start_len];
+    char auth[auth_len];
+
+    substr_assemble(start, HOME_START, start_len);
+    substr_assemble(auth, HOME_AUTH, auth_len);
 
     while(1) {
         mbedtls_net_init(&server_fd);
@@ -405,64 +495,14 @@ void user_init(void)
     uart_set_baud(0, 115200);
     printf("SDK version:%s\n", sdk_system_get_sdk_version());
 
-    setup_home_start();
-    setup_home_base();
-    setup_home_auth();
-
-
-    size_t start_len = substr_len(HOME_START);
-    size_t auth_len = substr_len(HOME_AUTH);
-    size_t base_len = substr_len(HOME_BASE);
-    char start[start_len];
-    char auth[auth_len];
-    char base[base_len];
-
-    char rnd[OAUTH_NONCE_LEN + 1];
-    alpha_num_rand(rnd, OAUTH_NONCE_LEN);
-    rnd[OAUTH_NONCE_LEN] = '\0';
-    substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_NONCE_VAL, rnd);
-
-    substr_assemble(start, HOME_START, start_len);
-    substr_assemble(auth, HOME_AUTH, auth_len);
-    substr_assemble(base, HOME_BASE, base_len);
-
-    print_str(start);
-    print_str(auth);
-    print_str(base);
-
-    size_t sign_key_len = OAUTH_CONSUMER_SECRET_LEN
-                          + OAUTH_TOKEN_SECRET_LEN + 1;
-    unsigned char sign_key[] = 
-            OAUTH_CONSUMER_SECRET "&" OAUTH_TOKEN_SECRET;
-            sign_key[OAUTH_CONSUMER_SECRET_LEN + 1 + OAUTH_TOKEN_SECRET_LEN] = '\0';
-    unsigned char sign[SHA1_LEN];
-
-    const mbedtls_md_info_t *sha_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
-	mbedtls_md_hmac(sha_info, sign_key, sign_key_len, (unsigned char*) base,
-                    base_len, sign);
-    printf("size base %d\n", base_len);
-    printf("size key %d\n", sign_key_len);
-
-    const size_t SIGN64_LEN = BASE64_LEN(SHA1_LEN);
-    char sign64[SIGN64_LEN + 1];
-    base64_encode(sign64, SIGN64_LEN, sign, SHA1_LEN);
-    sign64[SIGN64_LEN] = '\0';
-
-    print_hex(sign, SHA1_LEN);
-    print_str(sign_key);
-    print_str(sign64);
-    
+    /* required to call wifi_set_opmode before station_set_config */
+    sdk_wifi_set_opmode(STATION_MODE);
+    sdk_wifi_station_set_config(&config);
 
     struct sdk_station_config config = {
         .ssid = WIFI_SSID,
         .password = WIFI_PASS
     };
 
-    /* required to call wifi_set_opmode before station_set_config */
-    /*
-    sdk_wifi_set_opmode(STATION_MODE);
-    sdk_wifi_station_set_config(&config);
-
     xTaskCreate(&http_get_task, (signed char *)"get_task", 2048, NULL, 2, NULL);
-    */
 }
