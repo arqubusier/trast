@@ -19,6 +19,7 @@ enum twitter_statuses_home_timeline_start{
     HOME_START_CONTRIBUTOR_DETAILS_VAL,
     HOME_START_INCLUDE_ENTITIES,
     HOME_START_INCLUDE_ENTITIES_VAL,
+    HOME_START_HOST,
     HOME_START_N
 };
 

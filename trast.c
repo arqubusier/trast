@@ -59,17 +59,14 @@
 #define vTaskDelayMs(ms)	vTaskDelay((ms)/portTICK_RATE_MS)
 #define UNUSED_ARG(x)	(void)x
 
-#define WEB_SERVER "www.howsmyssl.com"
 #define WEB_PORT "443"
-#define WEB_URL "https://www.howsmyssl.com/a/check"
-
-#define GET_REQUEST "GET "WEB_URL" HTTP/1.1\nHost: "WEB_SERVER"\n\n"
+#define WEB_SERVER "api.twitter.com"
 
 size_t sign_key_len = 0;
 char *sign_key;
 
-/* Root cert for howsmyssl.com, stored in cert.c */
-extern const char *server_root_cert;
+/* Root certs used by twitter, stored in cert.c */
+extern const char *root_certs;
 
 /* MBEDTLS_DEBUG_C disabled by default to save substantial bloating of
  * firmware, define it in
@@ -166,15 +163,17 @@ void setup_home_auth(){
 
 }
 
+
 void setup_home_start(){
-    char head[] = "https://api.twitter.com/1.1/statuses/home_timeline.json";
+    char head[] = "GET https://api.twitter.com/1.1/statuses/home_timeline.json";
     char count[] = "?count=";
-    int count_val = 5;
+    char host[] = "\nHost: " WEB_SERVER "\n";
+    int count_val = 3;
     substr_init(HOME_START);
     substr_set_param_str(HOME_START, HOME_START_HEAD, head);
     substr_set_param_str(HOME_START, HOME_START_COUNT, count);
     substr_set_param_int(HOME_START, HOME_START_COUNT_VAL, count_val);
-
+    substr_set_param_str(HOME_START, HOME_START_HOST, host);
 }
 
 /* Update nonce, timestamp, sign */
@@ -183,7 +182,7 @@ void update_query(){
     alpha_num_rand(rnd, OAUTH_NONCE_LEN);
     rnd[OAUTH_NONCE_LEN] = '\0';
     substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_NONCE_VAL, rnd);
-    substr_set_param_str(HOME_AUTH, HOME_AUHT_OAUTH_NONCE_VAL, rnd);
+    substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_NONCE_VAL, rnd);
 
     time_t time_stamp = time(NULL);
     substr_set_param_long(HOME_BASE, HOME_BASE_OAUTH_TIMESTAMP_VAL,
@@ -198,7 +197,8 @@ void update_query(){
     unsigned char sign[SHA1_LEN];
     const mbedtls_md_info_t *sha_info = mbedtls_md_info_from_type(
                                             MBEDTLS_MD_SHA1);
-	mbedtls_md_hmac(sha_info, sign_key, sign_key_len, (unsigned char*) base,
+	mbedtls_md_hmac(sha_info, (unsigned char*) sign_key, 
+                    sign_key_len, (unsigned char*) base,
                     base_len, sign);
 
     const size_t SIGN64_LEN = BASE64_LEN(SHA1_LEN);
@@ -225,7 +225,7 @@ void http_get_task(void *pvParameters)
 	UNUSED_ARG(pvParameters);
 
     int successes = 0, failures = 0, ret;
-    printf("HTTP get task starting...\n");
+    printf("STARTING TLS CONNECTION TO TWITTER...\n");
 
     /* sntp update */
 	char *servers[] = {SNTP_SERVERS};
@@ -282,7 +282,7 @@ void http_get_task(void *pvParameters)
      */
     printf("  . Loading the CA root certificate ...");
 
-    ret = mbedtls_x509_crt_parse(&cacert, (uint8_t*)server_root_cert, strlen(server_root_cert)+1);
+    ret = mbedtls_x509_crt_parse(&cacert, (uint8_t*)root_certs, strlen(root_certs)+1);
     if(ret < 0)
     {
         printf(" failed\n  !  mbedtls_x509_crt_parse returned -0x%x\n\n", -ret);
@@ -347,15 +347,8 @@ void http_get_task(void *pvParameters)
     setup_home_start();
     setup_home_base();
     setup_home_auth();
+    update_sign_key();
 
-
-    size_t start_len = substr_len(HOME_START);
-    size_t auth_len = substr_len(HOME_AUTH);
-    char start[start_len];
-    char auth[auth_len];
-
-    substr_assemble(start, HOME_START, start_len);
-    substr_assemble(auth, HOME_AUTH, auth_len);
 
     while(1) {
         mbedtls_net_init(&server_fd);
@@ -412,11 +405,23 @@ void http_get_task(void *pvParameters)
             printf(" ok\n");
 
         /*
+         * Update twitter parameters
+         */
+        update_query();
+
+        /*
          * 3. Write the GET request
          */
         printf("  > Write to server:");
 
-        int len = sprintf((char *) buf, GET_REQUEST);
+        int ids[] = {HOME_START, HOME_AUTH};
+        int len = substr_combine((char*) buf, ids, 2, 1024); 
+        if(len == -1)
+        {
+            printf(" failed\n substr_combine returned %d\n\n", len);
+            goto exit;
+        }
+
 
         while((ret = mbedtls_ssl_write(&ssl, buf, len)) <= 0)
         {
@@ -495,14 +500,14 @@ void user_init(void)
     uart_set_baud(0, 115200);
     printf("SDK version:%s\n", sdk_system_get_sdk_version());
 
-    /* required to call wifi_set_opmode before station_set_config */
-    sdk_wifi_set_opmode(STATION_MODE);
-    sdk_wifi_station_set_config(&config);
-
     struct sdk_station_config config = {
         .ssid = WIFI_SSID,
         .password = WIFI_PASS
     };
+
+    /* required to call wifi_set_opmode before station_set_config */
+    sdk_wifi_set_opmode(STATION_MODE);
+    sdk_wifi_station_set_config(&config);
 
     xTaskCreate(&http_get_task, (signed char *)"get_task", 2048, NULL, 2, NULL);
 }

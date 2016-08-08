@@ -13,7 +13,8 @@
 #define BASE64_LEN(len) (((len + BASE64_PAD(len))/3)*4)
 
 typedef unsigned int uint;
-int n_digits(int i);
+int n_digits_i(int i);
+int n_digits_l(long l);
 
 /*
  * copies a string excluding the null character.

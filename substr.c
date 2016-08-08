@@ -38,7 +38,7 @@ int substr_free(const int substr_id){
 
 size_t substr_alloc_num(const int substr_id, const int param_id, long val){
     /* Reallocate if the buffer is to small */
-    size_t new_size = n_digits(val);
+    size_t new_size = n_digits_l(val);
     size_t old_size = PARAM_SZ(substr_id,param_id);
     if (old_size ==  0){
         new_size = new_size + PARAM_DEFAULT_LEN;
@@ -136,24 +136,30 @@ int substr_assemble(char* dst, const int substr_id, size_t dst_sz){
     return 0;
 }
 
-int substr_combine(int* substr_ids, unsigned int n_ints){
+int substr_combine(char* dst, int* substr_ids, unsigned int n_ints,
+        size_t dst_sz){
+
     unsigned int i = 0;
-    size_t total_size = 0;
+    size_t total_len = 0;
 
     for (;i < n_ints; ++i){
-        total_len += substr_param_len(substr_ids[i]);
+        total_len += substr_len(substr_ids[i]);
     }
 
-    char res[total_len + 1];
+    if (total_len >= dst_sz)
+        return -1;
 
     unsigned int offs = 0;
     unsigned int max = 0;
     for (;i < n_ints; ++i){
-        max = PARAM_SZ(substr_ids[i]);
-        offs += strcpy_limit(&res[offs], &substr_ids[i], max);
+        max = substr_size(substr_ids[i]);
+        int id = substr_ids[i];
+        char src[max];
+        substr_assemble(src, id, max);
+        offs += strcpy_limit(&dst[offs], src, max);
     }
-    res[total_len] = '\0';
-    return 0;
+    dst[total_len] = '\0';
+    return offs;
 }
 
 const char* substr_get_param(const int substr_id, const int param_id){

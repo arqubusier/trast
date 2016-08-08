@@ -15,6 +15,7 @@ const char* substr_get_param(const int substr_id,const int param);
 size_t substr_size(const int substr_id);
 size_t substr_len(const int substr_id);
 int substr_assemble(char* dst, const int substr_id, size_t dst_len);
-int substr_combine(int* substr_ids);
+int substr_combine(char* dst, int* substr_ids, unsigned int n_ids,
+                   size_t dst_sz);
 
 #endif/* SUBSTR_H */

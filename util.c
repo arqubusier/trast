@@ -11,7 +11,7 @@ const int  ALPHA_NUM_LEN = 62;
 
 #define BASE64(i) BASE64_ALPHABET[i] 
 
-int n_digits(long i){
+int n_digits_i(int i){
     if (i < 0) i = -i + 1;
     if (i <         10) return 1;
     if (i <        100) return 2;
@@ -22,6 +22,20 @@ int n_digits(long i){
     if (i <   10000000) return 7;
     if (i <  100000000) return 8;
     if (i < 1000000000) return 9;
+    return 10;
+}
+
+int n_digits_l(long l){
+    if (l < 0) l = -l + 1;
+    if (l <         10) return 1;
+    if (l <        100) return 2;
+    if (l <       1000) return 3;
+    if (l <      10000) return 4;
+    if (l <     100000) return 5;
+    if (l <    1000000) return 6;      
+    if (l <   10000000) return 7;
+    if (l <  100000000) return 8;
+    if (l < 1000000000) return 9;
     return 10;
 }
 
