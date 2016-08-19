@@ -62,9 +62,6 @@
 #define WEB_PORT "443"
 #define WEB_SERVER "api.twitter.com"
 
-size_t sign_key_len = 0;
-char *sign_key;
-
 /* Root certs used by twitter, stored in cert.c */
 extern const char *root_certs;
 
@@ -176,6 +173,21 @@ void setup_home_start(){
     substr_set_param_str(HOME_START, HOME_START_HOST, host);
 }
 
+void setup_sign_key(){
+    char consumer[] = OAUTH_CONSUMER_SECRET;
+    char sep[] = "&";
+    char token[] = OAUTH_TOKEN_SECRET;
+
+    printf("111111\n");
+    substr_init(SIGN_KEY);
+    printf("222222\n");
+    substr_set_param_str(SIGN_KEY, SIGN_KEY_CONSUMER_SECRET, consumer);
+    printf("333333\n");
+    substr_set_param_str(SIGN_KEY, SIGN_KEY_SEP, sep);
+    printf("444444\n");
+    substr_set_param_str(SIGN_KEY, SIGN_KEY_TOKEN_SECRET, token);
+}
+
 /* Update nonce, timestamp, sign */
 void update_query(){
     char rnd[OAUTH_NONCE_LEN + 1];
@@ -191,8 +203,12 @@ void update_query(){
                           (long) time_stamp);
 
     size_t base_len = substr_len(HOME_BASE);
-    char base[base_len];
-    substr_assemble(base, HOME_BASE, base_len);
+    char base[base_len + 1];
+    substr_assemble(base, HOME_BASE, base_len + 1);
+
+    size_t sign_key_len = substr_len(SIGN_KEY);
+    char sign_key[sign_key_len + 1];
+    substr_assemble(sign_key, SIGN_KEY, sign_key_len + 1);
 
     unsigned char sign[SHA1_LEN];
     const mbedtls_md_info_t *sha_info = mbedtls_md_info_from_type(
@@ -209,15 +225,6 @@ void update_query(){
                          sign64);
 }
 
-void update_sign_key(){
-    size_t new_len = OAUTH_CONSUMER_SECRET_LEN
-                          + OAUTH_TOKEN_SECRET_LEN + 1;
-    if (new_len > sign_key_len)
-        realloc((void*)sign_key, new_len + 1);
-
-    sign_key = OAUTH_CONSUMER_SECRET "&" OAUTH_TOKEN_SECRET;
-    sign_key[OAUTH_CONSUMER_SECRET_LEN + 1 + OAUTH_TOKEN_SECRET_LEN] = '\0';
-}
 
 void http_get_task(void *pvParameters)
 {
@@ -347,8 +354,9 @@ void http_get_task(void *pvParameters)
     setup_home_start();
     setup_home_base();
     setup_home_auth();
-    update_sign_key();
-
+    printf("AAAAA\n");
+    setup_sign_key();
+    printf("BBBBB\n");
 
     while(1) {
         mbedtls_net_init(&server_fd);

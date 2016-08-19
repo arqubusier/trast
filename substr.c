@@ -113,7 +113,6 @@ size_t substr_len(const int substr_id){
     for (; param_id < substr_n_params[substr_id]; param_id++){
         size_t max = PARAM_SZ(substr_id, param_id);
         total_size += strnlen(substrs[substr_id][param_id], max);
-        printf("par %d total size %d\n", param_id, total_size);
     }
     return total_size;
 }

@@ -69,10 +69,25 @@ enum oauth_home_timeline_auth_header{
     HOME_AUTH_N
 };
 
+enum sign_key{
+    SIGN_KEY_CONSUMER_SECRET,
+    SIGN_KEY_SEP,
+    SIGN_KEY_TOKEN_SECRET,
+    SIGN_KEY_N
+};
+
+
+/*
+ * ADD THE ID OF THE SUBSTRING HERE
+ */
 enum substr_ids{
     HOME_START,
     HOME_BASE,
-    HOME_AUTH
+    HOME_AUTH,
+    SIGN_KEY
 };
 
-#define SUBSTR_IDS {HOME_START_N, HOME_BASE_N, HOME_AUTH_N}
+/*
+ * ALSO ADD THE ID TO THIS LIST IN THE SAME ORDER AS IN THE ENUM ABOVE
+ */
+#define SUBSTR_IDS {HOME_START_N, HOME_BASE_N, HOME_AUTH_N, SIGN_KEY_N}
