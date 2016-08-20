@@ -2,8 +2,15 @@
 #include <stdint.h>
 #include <string.h>
 
-/* All root certifcates from DigiCert and VeriSign */
-const char *root_certs =
+/* All root certifcates from DigiCert and VeriSign
+ *
+ * Currently 29 in total
+ *
+ * the cetrificates are divided into groups; due to memory constraints,
+ * only one group is loaded into ram at a time*/
+
+
+const char *root_certs1 =
 "-----BEGIN CERTIFICATE-----\r\n"
 "MIIDdzCCAl+gAwIBAgIEAgAAuTANBgkqhkiG9w0BAQUFADBaMQswCQYDVQQGEwJJ\r\n"
 "RTESMBAGA1UEChMJQmFsdGltb3JlMRMwEQYDVQQLEwpDeWJlclRydXN0MSIwIAYD\r\n"
@@ -105,7 +112,9 @@ const char *root_certs =
 "AwNnADBkAjAlpIFFAmsSS3V0T8gj43DydXLefInwz5FyYZ5eEJJZVrmDxxDnOOlY\r\n"
 "JjZ91eQ0hjkCMHw2U/Aw5WJjOpnitqM7mzT6HtoQknFekROn3aRukswy1vUhZscv\r\n"
 "6pZjamVFkpUBtA==\r\n"
-"-----END CERTIFICATE-----\r\n"
+"-----END CERTIFICATE-----\r\n";
+
+const char *root_certs2 =
 "-----BEGIN CERTIFICATE-----\r\n"
 "MIIDuzCCAqOgAwIBAgIQCHTZWCM+IlfFIRXIvyKSrjANBgkqhkiG9w0BAQsFADBn\r\n"
 "MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3\r\n"
@@ -149,8 +158,7 @@ const char *root_certs =
 "PnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0ls\r\n"
 "YSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQk\r\n"
 "CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=\r\n"
-"-----END CERTIFICATE-----\r\n";
-/*
+"-----END CERTIFICATE-----\r\n"
 "-----BEGIN CERTIFICATE-----\r\n"
 "MIIDjjCCAnagAwIBAgIQAzrx5qcRqaC7KGSxHQn65TANBgkqhkiG9w0BAQsFADBh\r\n"
 "MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3\r\n"
@@ -210,7 +218,9 @@ const char *root_certs =
 "Yzi9RKR/5CYrCsSXaQ3pjOLAEFe4yHYSkVXySGnYvCoCWw9E1CAx2/S6cCZdkGCe\r\n"
 "vEsXCS+0yx5DaMkHJ8HSXPfqIbloEpw8nL+e/IBcm2PN7EeqJSdnoDfzAIJ9VNep\r\n"
 "+OkuE6N36B9K\r\n"
-"-----END CERTIFICATE-----\r\n"
+"-----END CERTIFICATE-----\r\n";
+
+const char *root_certs3 =
 "-----BEGIN CERTIFICATE-----\r\n"
 "MIIDnDCCAoSgAwIBAgIQAqgneYhfz3LBrBcPI90GkTANBgkqhkiG9w0BAQUFADBo\r\n"
 "MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3\r\n"
@@ -321,7 +331,9 @@ const char *root_certs =
 "Epn3o0WC4zxe9Z2etciefC7IpJ5OCBRLbf1wbWsaY71k5h+3zvDyny67G7fyUIhz\r\n"
 "ksLi4xaNmjICq44Y3ekQEe5+NauQrz4wlHrQMz2nZQ/1/I6eYs9HRCwBXbsdtTLS\r\n"
 "R9I4LtD+gdwyah617jzV/OeBHRnDJELqYzmp\r\n"
-"-----END CERTIFICATE-----\r\n"
+"-----END CERTIFICATE-----\r\n";
+
+const char *root_certs4 =
 "-----BEGIN CERTIFICATE-----\r\n"
 "MIIDdTCCAl2gAwIBAgIBATANBgkqhkiG9w0BAQsFADBcMQswCQYDVQQGEwJVUzEZ\r\n"
 "MBcGA1UECgwQVmVyaXpvbiBCdXNpbmVzczERMA8GA1UECwwIT21uaVJvb3QxHzAd\r\n"
@@ -409,7 +421,9 @@ const char *root_certs =
 "CSqGSIb3DQEBAgUAA4GBAIobK/o5wXTXXtgZZKJYSi034DNHD6zt96rbHuSLBlxg\r\n"
 "J8pFUs4W7z8GZOeUaHxgMxURaa+dYo2jA1Rrpr7l7gUYYAS/QoD90KioHgE796Nc\r\n"
 "r6Pc5iaAIzy4RHT3Cq5Ji2F4zCS/iIqnDupzGUH9TQPwiNHleI2lKk/2lw0Xd8rY\r\n"
-"-----END CERTIFICATE-----\r\n"
+"-----END CERTIFICATE-----\r\n";
+
+const char *root_certs5 =
 "-----BEGIN CERTIFICATE-----\r\n"
 "MIIDAjCCAmsCEH3Z/gfPqB63EHln+6eJNMYwDQYJKoZIhvcNAQEFBQAwgcExCzAJ\r\n"
 "BgNVBAYTAlVTMRcwFQYDVQQKEw5WZXJpU2lnbiwgSW5jLjE8MDoGA1UECxMzQ2xh\r\n"
@@ -509,7 +523,9 @@ const char *root_certs =
 "sQAsBNB0owIFImNjzYO1+8FtYmtpdf1dcEG59b98377BMnMiIYtYgXsVkXq642RI\r\n"
 "sH/7NiXaldDxJBQX3RiAa0YjOVT1jmIJBB2UkKab5iXiQkWquJCtvgiPqQtCGJTP\r\n"
 "cjnhsUPgKM+351psE2tJs//jGHyJizNdrDPXp/naOlXJWBD5qu9ats9LS98q\r\n"
-"-----END CERTIFICATE-----\r\n"
+"-----END CERTIFICATE-----\r\n";
+
+const char *root_certs6 =
 "-----BEGIN CERTIFICATE-----\r\n"
 "MIIEGjCCAwICEQCbfgZJoz5iudXukEhxKe9XMA0GCSqGSIb3DQEBBQUAMIHKMQsw\r\n"
 "CQYDVQQGEwJVUzEXMBUGA1UEChMOVmVyaVNpZ24sIEluYy4xHzAdBgNVBAsTFlZl\r\n"
@@ -607,4 +623,3 @@ const char *root_certs =
 "2NU8Qh0XwRJdRTjDOPP8hS6DRkiy1yBfkjaP53kPmF6Z6PDQpLv1U70qzlmwr25/\r\n"
 "bLvSHgCwIe34QWKCudiyxLtGUPMxxY8BqHTr9Xgn2uf3ZkPznoM+IKrDNWCRzg==\r\n"
 "-----END CERTIFICATE-----\r\n";
-*/

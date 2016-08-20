@@ -137,26 +137,34 @@ int substr_assemble(char* dst, const int substr_id, size_t dst_sz){
 
 int substr_combine(char* dst, int* substr_ids, unsigned int n_ints,
         size_t dst_sz){
+    printf("1111\n");
 
     unsigned int i = 0;
     size_t total_len = 0;
 
-    for (;i < n_ints; ++i){
+    for (i=0;i < n_ints; ++i){
         total_len += substr_len(substr_ids[i]);
+        printf("total_len %d\n", total_len);
     }
+    printf("22222\n");
 
     if (total_len >= dst_sz)
+    {
+        printf("33333\n");
         return -1;
+    }
 
     unsigned int offs = 0;
     unsigned int max = 0;
-    for (;i < n_ints; ++i){
-        max = substr_size(substr_ids[i]);
+    for (i=0; i < n_ints; ++i){
         int id = substr_ids[i];
+        max = substr_size(id);
         char src[max];
         substr_assemble(src, id, max);
         offs += strcpy_limit(&dst[offs], src, max);
+        printf("offs %d, id%d, max %d\n", offs, id, max);
     }
+    printf("44444\n");
     dst[total_len] = '\0';
     return offs;
 }

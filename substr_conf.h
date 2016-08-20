@@ -66,6 +66,7 @@ enum oauth_home_timeline_auth_header{
     HOME_AUTH_OAUTH_TOKEN,
     HOME_AUTH_OAUTH_TOKEN_VAL,
     HOME_AUTH_OAUTH_VERSION,
+    HOME_AUTH_BLANK_LINE,
     HOME_AUTH_N
 };
 

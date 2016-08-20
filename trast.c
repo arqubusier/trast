@@ -62,8 +62,6 @@
 #define WEB_PORT "443"
 #define WEB_SERVER "api.twitter.com"
 
-/* Root certs used by twitter, stored in cert.c */
-extern const char *root_certs;
 
 /* MBEDTLS_DEBUG_C disabled by default to save substantial bloating of
  * firmware, define it in
@@ -136,13 +134,14 @@ void setup_home_auth(){
     char nonce[] =  "\", oauth_nonce=\"";
     char nonce_val[OAUTH_NONCE_LEN+1];
     nonce_val[OAUTH_NONCE_LEN] = '\0';
-    char sign_met[] = "\",oauth_signature_method=\"3DHMAC-SHA1\",";
-    char time_stamp[] = "oauth_timestamp=\"";
+    char sign_met[] = "\", oauth_signature_method=\"3DHMAC-SHA1\"";
+    char time_stamp[] = ", oauth_timestamp=\"";
     //int  time_stamp_val =   (int) time(NULL);
     int  time_stamp_val = 0;
     char token[]  = "\", oauth_token=\"";
     char token_val[]= OAUTH_TOKEN;
-    char version[] = "\"oauth_version=\"1.0\"";
+    char version[] = "\", oauth_version=\"1.0\"\r\n";
+    char blank[] = "\r\n";
     substr_init(HOME_AUTH);
     substr_set_param_str(HOME_AUTH, HOME_AUTH_HEAD, head);
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_CONSUMER_KEY, c_key);
@@ -157,14 +156,14 @@ void setup_home_auth(){
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_SIGNATURE_METHOD, sign_met);
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_SIGNATURE, sign);
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_SIGNATURE_VAL, sign_val);
-
+    substr_set_param_str(HOME_AUTH, HOME_AUTH_BLANK_LINE, blank);
 }
 
 
 void setup_home_start(){
-    char head[] = "GET https://api.twitter.com/1.1/statuses/home_timeline.json";
+    char head[] = "GET /1.1/statuses/home_timeline.json";
     char count[] = "?count=";
-    char host[] = "\nHost: " WEB_SERVER "\n";
+    char host[] = " HTTP/1.1\r\nHost: " WEB_SERVER "\r\n";
     int count_val = 3;
     substr_init(HOME_START);
     substr_set_param_str(HOME_START, HOME_START_HEAD, head);
@@ -178,13 +177,9 @@ void setup_sign_key(){
     char sep[] = "&";
     char token[] = OAUTH_TOKEN_SECRET;
 
-    printf("111111\n");
     substr_init(SIGN_KEY);
-    printf("222222\n");
     substr_set_param_str(SIGN_KEY, SIGN_KEY_CONSUMER_SECRET, consumer);
-    printf("333333\n");
     substr_set_param_str(SIGN_KEY, SIGN_KEY_SEP, sep);
-    printf("444444\n");
     substr_set_param_str(SIGN_KEY, SIGN_KEY_TOKEN_SECRET, token);
 }
 
@@ -228,6 +223,26 @@ void update_query(){
 
 void http_get_task(void *pvParameters)
 {
+    /* Root certs used by twitter, stored in cert.c */
+    extern const char* root_certs1;
+    extern const char* root_certs2;
+    extern const char* root_certs3;
+    extern const char* root_certs4;
+    extern const char* root_certs5;
+    extern const char* root_certs6;
+
+    unsigned int successful_certs_group = 1;
+    const size_t N_CERTS_GROUPS = 6;
+    const char *root_certs[] = {
+        root_certs1, root_certs2, root_certs3,
+        root_certs4, root_certs5, root_certs6};
+    
+    const size_t root_certs_sz[] = {
+        strlen(root_certs1)+1, strlen(root_certs2)+1, strlen(root_certs3)+1,
+        strlen(root_certs4)+1, strlen(root_certs5)+1, strlen(root_certs6)+1};
+
+    printf("Beginning, free heap = %u\n", xPortGetFreeHeapSize());
+
     //TODO REMOVE!!!
 	UNUSED_ARG(pvParameters);
 
@@ -245,8 +260,8 @@ void http_get_task(void *pvParameters)
 	/* Start SNTP */
 	printf("Starting SNTP... ");
 	sntp_set_update_delay(SNTP_UPDATE_INTERVAL);
-	/* Set GMT+1 zone, daylight savings off */
-	const struct timezone tz = {1*60, 1};
+	/* Set GMT zone, daylight savings off */
+	const struct timezone tz = {0, 0};
 	sntp_initialize(&tz);
 	/* Servers must be configured right after initialization */
 	sntp_set_servers(servers, sizeof(servers) / sizeof(char*));
@@ -287,16 +302,22 @@ void http_get_task(void *pvParameters)
     /*
      * 0. Initialize certificates
      */
-    printf("  . Loading the CA root certificate ...");
+    printf("  . Loading the CA root certificates ...");
 
-    ret = mbedtls_x509_crt_parse(&cacert, (uint8_t*)root_certs, strlen(root_certs)+1);
+    unsigned ca_idx = successful_certs_group;
+    unsigned ca_cnt = 0;
+    const char *cur_root_certs = root_certs[ca_idx];
+    ret = mbedtls_x509_crt_parse(&cacert, (uint8_t*)cur_root_certs,
+                                 root_certs_sz[ca_idx]);
     if(ret < 0)
     {
         printf(" failed\n  !  mbedtls_x509_crt_parse returned -0x%x\n\n", -ret);
-        while(1) {} /* todo: replace with abort() */
+        abort();
     }
 
     printf(" ok (%d skipped)\n", ret);
+    printf("after parsing certificates, free heap = %u\n", 
+            xPortGetFreeHeapSize());
 
     /* Hostname set here should match CN in server certificate */
     if((ret = mbedtls_ssl_set_hostname(&ssl, WEB_SERVER)) != 0)
@@ -321,22 +342,13 @@ void http_get_task(void *pvParameters)
 
     printf(" ok\n");
 
-    /* OPTIONAL is not optimal for security, in this example it will print
-       a warning if CA verification fails but it will continue to connect.
-    */
-    mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
+    mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
     mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
     mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 #ifdef MBEDTLS_DEBUG_C
     mbedtls_debug_set_threshold(DEBUG_LEVEL);
     mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
 #endif
-
-    if((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0)
-    {
-        printf(" failed\n  ! mbedtls_ssl_setup returned %d\n\n", ret);
-        goto exit;
-    }
 
     /* Wait until we can resolve the DNS for the server, as an indication
        our network is probably working...
@@ -350,13 +362,19 @@ void http_get_task(void *pvParameters)
     } while(dns_err != ERR_OK);
     printf("done.\n");
 
+    printf("before twitter parameters, free heap = %u\n", 
+            xPortGetFreeHeapSize());
     /* Set up twitter parameters */
     setup_home_start();
     setup_home_base();
     setup_home_auth();
-    printf("AAAAA\n");
     setup_sign_key();
-    printf("BBBBB\n");
+
+    if((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0)
+    {
+        printf(" failed\n  ! mbedtls_ssl_setup returned %d\n\n", ret);
+        goto exit;
+    }
 
     while(1) {
         mbedtls_net_init(&server_fd);
@@ -377,40 +395,41 @@ void http_get_task(void *pvParameters)
 
         mbedtls_ssl_set_bio(&ssl, &server_fd, mbedtls_net_send, mbedtls_net_recv, NULL);
 
-        /*
-         * 4. Handshake
-         */
-        printf("  . Performing the SSL/TLS handshake...");
 
+
+        printf("  . Performing the SSL/TLS handshake...");
         while((ret = mbedtls_ssl_handshake(&ssl)) != 0)
         {
-            if(ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE)
+            if (ret == MBEDTLS_ERR_X509_CERT_VERIFY_FAILED){
+                mbedtls_x509_crt_free(&cacert);
+                ca_idx++;
+                ca_idx %= N_CERTS_GROUPS;
+                printf(" failed\n  ! certificate verify failed in handshake"
+                       ", trying certificate group %d\n", ca_idx);
+
+                cur_root_certs = root_certs[ca_idx];
+                ret = mbedtls_x509_crt_parse(&cacert, (uint8_t*)cur_root_certs,
+                                             root_certs_sz[ca_idx]);
+                
+                if(ret < 0)
+                {
+                    printf(" failed\n  !  mbedtls_x509_crt_parse "
+                           "returned -0x%x\n\n", -ret);
+                    abort();
+                }
+
+                mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
+
+            }else if (ret != MBEDTLS_ERR_SSL_WANT_READ && 
+                      ret != MBEDTLS_ERR_SSL_WANT_WRITE)
             {
                 printf(" failed\n  ! mbedtls_ssl_handshake returned -0x%x\n\n", -ret);
-                goto exit;
             }
+
+
+            goto exit;
         }
 
-        printf(" ok\n");
-
-        /*
-         * 5. Verify the server certificate
-         */
-        printf("  . Verifying peer X.509 certificate...");
-
-        /* In real life, we probably want to bail out when ret != 0 */
-        if((flags = mbedtls_ssl_get_verify_result(&ssl)) != 0)
-        {
-            char vrfy_buf[512];
-
-            printf(" failed\n");
-
-            mbedtls_x509_crt_verify_info(vrfy_buf, sizeof(vrfy_buf), "  ! ", flags);
-
-            printf("%s\n", vrfy_buf);
-        }
-        else
-            printf(" ok\n");
 
         /*
          * Update twitter parameters
@@ -424,6 +443,8 @@ void http_get_task(void *pvParameters)
 
         int ids[] = {HOME_START, HOME_AUTH};
         int len = substr_combine((char*) buf, ids, 2, 1024); 
+        printf("MSGLEN: %d\s\n", len);
+        printf("MSG: %s\n", buf);
         if(len == -1)
         {
             printf(" failed\n substr_combine returned %d\n\n", len);
@@ -481,7 +502,21 @@ void http_get_task(void *pvParameters)
         mbedtls_ssl_close_notify(&ssl);
 
     exit:
-        mbedtls_ssl_session_reset(&ssl);
+        mbedtls_ssl_free(&ssl);
+        mbedtls_ssl_init(&ssl);
+        /* Hostname set here should match CN in server certificate */
+        if((ret = mbedtls_ssl_set_hostname(&ssl, WEB_SERVER)) != 0)
+        {
+            printf(" failed\n  ! mbedtls_ssl_set_hostname returned %d\n\n",
+                    ret);
+            abort();
+        }
+        if((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0)
+        {
+            printf(" failed\n  ! mbedtls_ssl_setup returned %d\n\n", ret);
+            abort();
+        }
+
         mbedtls_net_free(&server_fd);
 
         if(ret != 0)
