@@ -52,6 +52,11 @@ enum oauth_home_timeline_base_str{
     HOME_BASE_N
 };
 
+/*
+ * NOTE KEYS AND VALUES OF THE AUTHORIZATION STRING NEED
+ * TO BE PERCENT ENCODED, SEE
+ *  https://dev.twitter.com/oauth/overview/authorizing-requests 
+ */
 enum oauth_home_timeline_auth_header{
     HOME_AUTH_HEAD,
     HOME_AUTH_OAUTH_CONSUMER_KEY,

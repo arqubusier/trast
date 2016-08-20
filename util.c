@@ -67,6 +67,7 @@ size_t percent_encode_size(const char* src){
     return total_size;
 }
 
+/* only works for ascii */
 void percent_encode(char *dst, const char *src){
     size_t src_sz = strlen(src);
     int i=0, offs=0;
@@ -80,7 +81,7 @@ void percent_encode(char *dst, const char *src){
             offs += 1;
         }
         else{
-            sprintf(&dst[offs], "%d2x", src[i]);
+            sprintf(&dst[offs], "%%%02X", src[i]);
             offs += 3;
         }
     }

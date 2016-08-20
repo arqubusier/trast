@@ -97,8 +97,10 @@ static void my_debug(void *ctx, int level,
 #endif
 
 void setup_home_base(){
-    char head[] = "GET&https%3A%2F%2Fapi.twitter.com%2F1.1%2Fstatuses%2Fhome_timeline.json&"; 
-    char c_key[] = "oauth_consumer_key%3D";
+    char head[] = "GET&https%3A%2F%2Fapi.twitter.com%2F1.1%2Fstatuses%2Fhome_timeline.json&";
+    char count[] = "count%3D";
+    int count_val = 3;
+    char c_key[] = "%26oauth_consumer_key%3D";
     char c_key_val[] = OAUTH_CONSUMER_KEY;
     char nonce[] =  "%26oauth_nonce%3D";
     char nonce_val[OAUTH_NONCE_LEN+1];
@@ -106,13 +108,14 @@ void setup_home_base(){
     nonce_val[OAUTH_NONCE_LEN] = '\0';
     char sign_met[] = "%26oauth_signature_method%3DHMAC-SHA1";
     char time_stamp[] = "%26oauth_timestamp%3D";
-    //int  time_stamp_val = (int) time(NULL);
     int  time_stamp_val = 0;
     char token[]  = "%26oauth_token%3D";
     char token_val[]= OAUTH_TOKEN;
     char version[] = "%26oauth_version%3D1.0";
     substr_init(HOME_BASE);
     substr_set_param_str(HOME_BASE, HOME_BASE_HEAD, head);
+    substr_set_param_str(HOME_BASE, HOME_BASE_COUNT, count);
+    substr_set_param_int(HOME_BASE, HOME_BASE_COUNT_VAL, count_val);
     substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_CONSUMER_KEY, c_key);
     substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_CONSUMER_KEY_VAL, c_key_val);
     substr_set_param_str(HOME_BASE, HOME_BASE_OAUTH_NONCE, nonce);
@@ -134,9 +137,8 @@ void setup_home_auth(){
     char nonce[] =  "\", oauth_nonce=\"";
     char nonce_val[OAUTH_NONCE_LEN+1];
     nonce_val[OAUTH_NONCE_LEN] = '\0';
-    char sign_met[] = "\", oauth_signature_method=\"3DHMAC-SHA1\"";
+    char sign_met[] = "\", oauth_signature_method=\"HMAC-SHA1\"";
     char time_stamp[] = ", oauth_timestamp=\"";
-    //int  time_stamp_val =   (int) time(NULL);
     int  time_stamp_val = 0;
     char token[]  = "\", oauth_token=\"";
     char token_val[]= OAUTH_TOKEN;
@@ -183,7 +185,7 @@ void setup_sign_key(){
     substr_set_param_str(SIGN_KEY, SIGN_KEY_TOKEN_SECRET, token);
 }
 
-/* Update nonce, timestamp, sign */
+/* Update nonce, timestamp and oauth signature */
 void update_query(){
     char rnd[OAUTH_NONCE_LEN + 1];
     alpha_num_rand(rnd, OAUTH_NONCE_LEN);
@@ -212,12 +214,21 @@ void update_query(){
                     sign_key_len, (unsigned char*) base,
                     base_len, sign);
 
+    printf("BASE: %s\n", base);
+    //base64 encode the signature
     const size_t SIGN64_LEN = BASE64_LEN(SHA1_LEN);
     char sign64[SIGN64_LEN + 1];
     base64_encode(sign64, SIGN64_LEN, sign, SHA1_LEN);
     sign64[SIGN64_LEN] = '\0';
+
+    //percent encode the signature
+    const size_t SIGN_PERCENT_LEN = percent_encode_size(sign64);
+    char sign_percent[SIGN_PERCENT_LEN + 1];
+    percent_encode(sign_percent, sign64);
+    sign_percent[SIGN_PERCENT_LEN] = '\0';
+
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_SIGNATURE_VAL,
-                         sign64);
+                         sign_percent);
 }
 
 
