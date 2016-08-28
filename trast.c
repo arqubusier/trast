@@ -99,7 +99,7 @@ static void my_debug(void *ctx, int level,
 void setup_home_base(){
     char head[] = "GET&https%3A%2F%2Fapi.twitter.com%2F1.1%2Fstatuses%2Fhome_timeline.json&";
     char count[] = "count%3D";
-    int count_val = 3;
+    int count_val = 1;
     char c_key[] = "%26oauth_consumer_key%3D";
     char c_key_val[] = OAUTH_CONSUMER_KEY;
     char nonce[] =  "%26oauth_nonce%3D";
@@ -166,7 +166,7 @@ void setup_home_start(){
     char head[] = "GET /1.1/statuses/home_timeline.json";
     char count[] = "?count=";
     char host[] = " HTTP/1.1\r\nHost: " WEB_SERVER "\r\n";
-    int count_val = 3;
+    int count_val = 1;
     substr_init(HOME_START);
     substr_set_param_str(HOME_START, HOME_START_HEAD, head);
     substr_set_param_str(HOME_START, HOME_START_COUNT, count);

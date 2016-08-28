@@ -12,7 +12,6 @@ enum json_res {
     JSON_DONE = 0,
 	JSON_ERROR_PARSING = -1,
 	JSON_ERROR_STORAGE_SIZE = -2,
-    JSON_PARSER_FAULT = -3 //the parser made an illegal action
 };
 
 enum json_match{
@@ -24,8 +23,8 @@ enum json_match{
 };
 
 typedef struct {
+    //must have at least one level
     const char **key_addr;
-    size_t max_level;
     int match_upto_level;
     char *storage;
     size_t storage_sz;
@@ -33,8 +32,8 @@ typedef struct {
 } json_str_t;
 
 typedef struct {
+    //must have at least one level
     const char **key_addr;
-    size_t max_level;
     int match_upto_level;
     int *storage;
     struct json_int_t *next;

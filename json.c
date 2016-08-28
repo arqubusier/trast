@@ -1,121 +1,8 @@
 #include "json.h"
 
 
-/*
-static int _parse_primitive(jsmn_parser *parser, const char *js,
-		size_t len, jsmntok_t *tokens, size_t num_tokens) {
-	jsmntok_t *token;
-	int start;
-
-	start = parser->buff_offset;
-
-	for (; parser->buff_offset < len && js[parser->buff_offset] != '\0'; parser->buff_offset++) {
-		switch (js[parser->buff_offset]) {
-#ifndef JSMN_STRICT
-			case ':':
-#endif
-			case '\t' : case '\r' : case '\n' : case ' ' :
-			case ','  : case ']'  : case '}' :
-				goto found;
-		}
-		if (js[parser->buff_offset] < 32 || js[parser->buff_offset] >= 127) {
-			parser->buff_offset = start;
-			return JSMN_ERROR_INVAL;
-		}
-	}
-#ifdef JSMN_STRICT
-	parser->buff_offset = start;
-	return JSMN_ERROR_PART;
-#endif
-
-found:
-	if (tokens == NULL) {
-		parser->buff_offset--;
-		return 0;
-	}
-	token = jsmn_alloc_token(parser, tokens, num_tokens);
-	if (token == NULL) {
-		parser->buff_offset = start;
-		return JSMN_ERROR_NOMEM;
-	}
-	jsmn_fill_token(token, JSMN_PRIMITIVE, start, parser->buff_offset);
-#ifdef JSMN_PARENT_LINKS
-	token->parent = parser->toksuper;
-#endif
-	parser->buff_offset--;
-	return 0;
-}
-*/
-
-/**
- * Fills next token with JSON string.
- */
-//static int jsmn_parse_string(jsmn_parser *parser, const char *js,
-//		size_t len, jsmntok_t *tokens, size_t num_tokens) {
-//	jsmntok_t *token;
-//
-//	int start = parser->buff_offset;
-//
-//	parser->buff_offset++;
-//
-//	/* Skip starting quote */
-//	for (; parser->buff_offset < len && js[parser->buff_offset] != '\0'; parser->buff_offset++) {
-//		char c = js[parser->buff_offset];
-//
-//		/* Quote: end of string */
-//		if (c == '\"') {
-//			if (tokens == NULL) {
-//				return 0;
-//			}
-//			token = jsmn_alloc_token(parser, tokens, num_tokens);
-//			if (token == NULL) {
-//				parser->buff_offset = start;
-//				return JSMN_ERROR_NOMEM;
-//			}
-//			jsmn_fill_token(token, JSMN_STRING, start+1, parser->buff_offset);
-//#ifdef JSMN_PARENT_LINKS
-//			token->parent = parser->toksuper;
-//#endif
-//			return 0;
-//		}
-//
-//		/* Backslash: Quoted symbol expected */
-//		if (c == '\\' && parser->buff_offset + 1 < len) {
-//			int i;
-//			parser->buff_offset++;
-//			switch (js[parser->buff_offset]) {
-//				/* Allowed escaped symbols */
-//				case '\"': case '/' : case '\\' : case 'b' :
-//				case 'f' : case 'r' : case 'n'  : case 't' :
-//					break;
-//				/* Allows escaped symbol \uXXXX */
-//				case 'u':
-//					parser->buff_offset++;
-//					for(i = 0; i < 4 && parser->buff_offset < len && js[parser->buff_offset] != '\0'; i++) {
-//						/* If it isn't a hex character we have an error */
-//						if(!((js[parser->buff_offset] >= 48 && js[parser->buff_offset] <= 57) || /* 0-9 */
-//									(js[parser->buff_offset] >= 65 && js[parser->buff_offset] <= 70) || /* A-F */
-//									(js[parser->buff_offset] >= 97 && js[parser->buff_offset] <= 102))) { /* a-f */
-//							parser->buff_offset = start;
-//							return JSMN_ERROR_INVAL;
-//						}
-//						parser->buff_offset++;
-//					}
-//					parser->buff_offset--;
-//					break;
-//				/* Unexpected symbol */
-//				default:
-//					parser->buff_offset = start;
-//					return JSMN_ERROR_INVAL;
-//			}
-//		}
-//	}
-//	parser->buff_offset = start;
-//	return JSMN_ERROR_PART;
-//}
-//
-
 enum json_state{
+    JSON_STATE_START,
     JSON_STATE_BEGIN_VAL_OR_KEY,
     JSON_STATE_INT_ELEM,
     JSON_STATE_TRUE_ELEM,
@@ -126,10 +13,11 @@ enum json_state{
     JSON_STATE_KEY_OR_STR_END,
     JSON_STATE_TYPE,
     JSON_STATE_INT,
-    JSON_STATE_SPECIAL,
+    JSON_STATE_INT,
+    JSON_STATE_TRUE,
+    JSON_STATE_FALSE,
     JSON_STATE_STR,
     JSON_STATE_STR_ESCAPE,
-    JSON_STATE_END_STR,
     JSON_STATE_END_VAL
 }
 
@@ -144,12 +32,7 @@ const size_t FALSE_VAL_LEN = 5;
 const size_t NULL_VAL_LEN = 4;
 
 inline bool is_special(const size_t offs, const char c, int state){
-    return ( (state == JSON_STATE_TRUE_ELEM && offs < TRUE_VAL_LEN
-              && c == TRUE_VAL[offs])
-          || (state == JSON_STATE_NULL_ELEM && offs < NULL_VAL_LEN
-              && c == NULL_VAL[offs])
-          || (state == JSON_STATE_FALSE_ELEM && offs < FALSE_VAL_LEN
-              && c == FALSE_VAL[offs]);
+    return ;
         
 }
 
@@ -184,9 +67,11 @@ int handle_int_elem(json_parser *parser, const char c){
         case ']':
             parser->level--;
             parser->state = JSON_STATE_VAL_END;
+            parser->key_offset = 0;
             break;
         case ',':
             parser->state = JSON_STATE_BEGIN_VAL_OR_KEY;
+            parser->key_offset = 0;
             break;
         default:
             return JSON_ERROR_PARSING;
@@ -207,70 +92,239 @@ int handle_special_elem(json_parser *parser, const char c){
             parser->key_offset = 0;
             break;
         default:
-            if (!is_special(parser->key_offset, c, parser->state))
+            //check if c is part of a special literal
+            if !((state == JSON_STATE_TRUE_ELEM && offs < TRUE_VAL_LEN
+                    && c == TRUE_VAL[offs])
+                  || (state == JSON_STATE_NULL_ELEM && offs < NULL_VAL_LEN
+                    && c == NULL_VAL[offs])
+                  || (state == JSON_STATE_FALSE_ELEM && offs < FALSE_VAL_LEN
+                    && c == FALSE_VAL[offs]))
                 return JSON_ERROR_PARSING;
             parser->key_offset++;
     }
     return JSON_CONTINUE;
 }
 
-//ADD SAVE TO STORAGE
+//TODO: ADD SAVE TO STORAGE == ADD ARRAY SUPPORT
 int handle_key_or_str(json_parser *parser, const char c){
-    int i;
+    size_t i;
     json_int_t *prev_int_match = int_matches;
     json_str_t *prev_str_match = str_matches;
     json_int_t *int_match;
     json_str_t *str_match;
 
-    switch (c){
-        case '\\':
-            parser->state = JSON_STATE_KEY_OR_STR_ESCAPE;
-            parser->key_offset++;
-            break;
-        case '"':
-            parser->state = JSON_STATE_KEY_OR_STR_END;
-            //mark matches
-            for (int_match = parser->int_matches; int_match != JSON_LIST_EMPTY;
-                    int_match = int_match->next){
-                int_match->match_upto_level++;
-            }
+    if (parser->state == JSON_STATE_KEY_OR_STR && c == '\\'){
+        parser->state = JSON_STATE_KEY_OR_STR_ESCAPE;
+        parser->key_offset++;
+    }else if (parser->state == JSON_STATE_KEY_OR_STR && c == '\"'){
+        parser->state = JSON_STATE_KEY_OR_STR_END;
+        //mark matches
+        for (int_match = parser->int_matches; int_match != JSON_LIST_EMPTY;
+                int_match = int_match->next){
+            int_match->match_upto_level++;
+        }
 
-            parser->key_offset = 0;
-        default:
-            //fill the list of matches
-            if (parser->should_find_matches){
-                for (i=0; i< parser->n_ints; ++i){
+        parser->key_offset = 0;
+    }else{
+        //fill the list of matches
+        if (parser->should_find_matches){
+            if (parser->n_ints > 0){
+                i = parser->n_ints;
+                parser->int_matches = JSON_LIST_EMPTY;
+                do {
+                    --i;
                     // Note that keys must contain at least one char
                     // namely '\0'
+
                     int_match = &int_matches[i];
                     if ((int_match->match_upto_level == parser->level - 1)
-                            && (int_match->max_level <= parser->level)
-                            && (c == int_match->key_addr[parser->level][0])){
-                        prev_int_match->next = int_match;
-                        prev_int_match = int_match;
+                         && (c == int_match->key_addr[parser->level][0])){
+                        int_match->next = parser->int_matches;
+                        parser->int_matches = int_match;
                     }
-                }
-            }
-            //filter out key addresses that don't match
-            else{
-                int_match = parser->int_matches;
-                prev_int_match = int_match;
-                for (;int_match != JSON_LIST_EMPTY;
-                       int_match = int_match->next){
-                    if (c != int_match->key_addr[parser->level][key_offset])
-                        if (prev_int_match == parser->int_matches)
-                            parser->int_matches = int_match->next;
-                        else
-                            prev_int_match->next = int_match->next;
-                    else
-                        prev_int_match = int_match;
-                }
+                } while(i != 0); 
             }
 
-            parser->key_offset++;
+            if (parser->n_strs > 0){
+                i = parser->n_strs;
+                parser->strs_matches = JSON_LIST_EMPTY;
+                do {
+                    --i;
+                    // Note that keys must contain at least one char
+                    // namely '\0'
+
+                    str_match = &str_matches[i];
+                    if ((str_match->match_upto_level == parser->level - 1)
+                         && (c == str_match->key_addr[parser->level][0])){
+                        str_match->next = parser->str_matches;
+                        parser->str_matches = str_match;
+                    }
+                } while(i != 0); 
+            }
+        }
+        //filter out key addresses that don't match
+        else{
+            int_match = parser->int_matches;
+            prev_int_match = int_match;
+            for (;int_match != JSON_LIST_EMPTY;
+                   int_match = int_match->next){
+                if (c != int_match->key_addr[parser->level][key_offset])
+                    if (prev_int_match == parser->int_matches)
+                        parser->int_matches = int_match->next;
+                    else
+                        prev_int_match->next = int_match->next;
+                else
+                    prev_int_match = int_match;
+            }
+        }
+
+        parser->key_offset++;
     }
+
+    return JSON_CONTINUE;
 }
 
+int handle_key_or_str_end(json_parser *parser, const char c){
+    switch (c){
+        //TODO ADD ARRAY SUPPORT
+        //skip White spaces
+        case ' ': case '\t': case '\r': case '\n': case: '\t':
+            break;
+        //str array element
+        case ',':
+            parser->state = JSON_STATE_BEGIN_VAL_OR_KEY;
+            parser->key_offset = 0;
+            break;
+        //str array element
+        case ']':
+            parser->state = JSON_STATE_END_VAL;
+            parser->key_offset = 0;
+            break;
+        case ':':
+            parser->state = JSON_STATE_TYPE;
+            parser->key_offset = 0;
+            break;
+        default:
+            return JSON_ERROR_PARSING;
+    }
+
+    return JSON_CONTINUE;
+}
+
+int handle_type(json_parser *parser, const char c){
+    switch (c){
+        //TODO ADD SPECIAL STORAGE SUPPORT
+        //TODO ADD ARRAY SUPPORT
+        //skip White spaces
+        case ' ': case '\t': case '\r': case '\n': case: '\t':
+            break;
+        case '{': case '[':
+            parser->state = JSON_STATE_BEGIN_VAL_OR_KEY;
+            break;
+        case '0' ... '9':
+            parser->state = JSON_STATE_INT;
+            break;
+        case 't':
+            parser->state = JSON_STATE_TRUE;
+            break;
+        case 'f':
+            parser->state = JSON_STATE_FALSE;
+            break;
+        case 'n':
+            parser->state = JSON_STATE_NULL;
+            break;
+        case '\"':
+            parser->state = JSON_STATE_STR;
+            break;
+        default:
+            return JSON_ERROR_PARSING;
+    }
+
+    return JSON_CONTINUE;
+}
+
+int handle_int(json_parser *parser, const char c){
+    if (parser->int_matches != JSON_LIST_EMPTY){
+        int digit = c_to_int(c);
+        if (tmp == -1)
+            return JSON_ERROR_PARSING;
+        parser->int_matches->storage *= 10;
+        parser->int_matches->storage += digit;
+    }
+    else
+        return handle_end_val(parser, c);
+}
+
+int handle_special(json_parser *parser, const char c){
+    if ((state == JSON_STATE_TRUE && offs < TRUE_VAL_LEN
+            && c == TRUE_VAL[offs])
+          || (state == JSON_STATE_NULL && offs < NULL_VAL_LEN
+            && c == NULL_VAL[offs])
+          || (state == JSON_STATE_FALSE && offs < FALSE_VAL_LEN
+            && c == FALSE_VAL[offs]))
+        return JSON_CONTINUE;
+    else
+        return handle_end_val(parser, c);
+
+}
+
+int handle_str(json_parser *parser, const char c){
+    if (parser->state != JSON_STATE_STR_ESCAPE && c == '\\')
+        parser->state = JSON_STATE_STR_ESCAPE;
+    else if (parser->state != JSON_STATE_STR_ESCAPE && c == '\"'){
+        if (parser->key_offset + 1 > str->storage_sz)
+            return JSON_ERROR_STORAGE_SIZE;
+        parser->state = JSON_STATE_END_VAL;
+        parser->str_matches->storage[parser->key_offset] = '\0';
+        parser->key_offset = 0;
+    }
+    else if (parser->str_matches != JSON_LIST_EMPTY){
+        json_str_t *str = parser->str_matches;
+        if (parser->key_offset + 1 > str->storage_sz)
+            return JSON_ERROR_STORAGE_SIZE;
+        str[key_offset] = c;
+        parser->key_offset++;
+    }
+
+    return JSON_CONTINUE;
+}
+
+int handle_end_val(json_parser *parser, const char c){
+    switch (c){
+        //skip White spaces
+        case ' ': case '\t': case '\r': case '\n': case: '\t':
+            break;
+        case '}':
+            parser->level--;
+            if (level == 0)
+                return JSON_DONE;
+            break;
+        case ']':
+            parser->level--;
+            break;
+        case ',':
+            parser->state = JSON_STATE_BEGIN_VAL_OR_KEY;
+            break;
+        default:
+            return JSON_ERROR_PARSING;
+    }
+
+    return JSON_CONTINUE;
+}
+
+int handle_start(json_parser *parser, const char c){
+    switch (c){
+        //skip White spaces
+        case ' ': case '\t': case '\r': case '\n': case: '\t':
+            break;
+        case '{':
+            parser->state = JSON_STATE_BEGIN_VAL_OR_KEY
+            break:
+        default:
+            return JSON_ERROR_PARSING;
+    }
+    return JSON_CONTINUE;
+}
 //TODO ADD OPTIMISATIONS DURING KEY MATCHING
 int json_parse(json_parser *parser,
                const char *input_buff, size_t buff_sz);
@@ -294,28 +348,22 @@ int json_parse(json_parser *parser,
             case JSON_STATE_TRUE_ELEM: case JSON_STATE_FALSE_ELEM:
                     case JSON_STATE_NULL_ELEM;
                 res = handle_special_elem(parser, c); break;
-            case JSON_STATE_KEY_OR_STR:
+            case JSON_STATE_KEY_OR_STR: case JSON_STATE_KEY_OR_STR_ESCAPE:
                 res = handle_key_or_str(parser, c); break;
-            case JSON_STATE_KEY_OR_STR_ESCAPE:
-                res = handle_key_or_str_escape(parser, c); break;
             case JSON_STATE_KEY_OR_STR_END:
                 res = handle_key_or_str_end(parser, c); break;
             case JSON_STATE_TYPE:
                 res = handle_type(parser, c); break;
             case JSON_STATE_INT:
                 res = handle_int(parser, c); break;
-            case JSON_STATE_SPECIAL:
+            case JSON_STATE_TRUE: case JSON_STATE_FALSE: case JSON_STATE_NULL;
                 res = handle_special(parser, c); break;
-            case JSON_STATE_STR:
+            case JSON_STATE_STR: case JSON_STATE_ESCAPE:
                 res = handle_str(parser, c); break;
-            case JSON_STATE_STR_ESCAPE:
-                res = handle_str_escape(parser, c); break;
-            case JSON_STATE_END_STR:
-                res = handle_end_str(parser, c); break;
-            case JSON_END_VAL:
+            case JSON_STATE_END_VAL:
                 res = handle_end_val(parser, c); break;
-            default:
-                return JSON_PARSER_FAULT;
+            case JSON_STATE_START:
+                res = handle_start(parser, c); break;
 
             //parsing stop if we are done or if there was an error
             if (res <= 0)
