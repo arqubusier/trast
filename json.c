@@ -1,4 +1,6 @@
 #include "json.h"
+#include <stddef.h>
+#include "util.h"
 
 
 enum json_state{
@@ -13,45 +15,63 @@ enum json_state{
     JSON_STATE_KEY_OR_STR_END,
     JSON_STATE_TYPE,
     JSON_STATE_INT,
-    JSON_STATE_INT,
     JSON_STATE_TRUE,
     JSON_STATE_FALSE,
+    JSON_STATE_NULL,
     JSON_STATE_STR,
     JSON_STATE_STR_ESCAPE,
     JSON_STATE_END_VAL
-}
+};
 
 /*----------------------------------------------------------------------------*
  * State handling functions
  *----------------------------------------------------------------------------*/
-const char *const TRUE_VAL[] = "true";
-const char *const FALSE_VAL[] = "false";
-const char *const NULL_VAL[] = "null";
+const char *const TRUE_VAL = "true";
+const char *const FALSE_VAL = "false";
+const char *const NULL_VAL = "null";
 const size_t TRUE_VAL_LEN = 4;
 const size_t FALSE_VAL_LEN = 5;
 const size_t NULL_VAL_LEN = 4;
 
-inline bool is_special(const size_t offs, const char c, int state){
-    return ;
-        
+int handle_end_val(json_parser *parser, const char c){
+    switch (c){
+        //skip White spaces
+        case ' ': case '\t': case '\r': case '\n':
+            break;
+        case '}':
+            parser->level--;
+            if (parser->level == 0)
+                return JSON_DONE;
+            break;
+        case ']':
+            parser->level--;
+            break;
+        case ',':
+            parser->state = JSON_STATE_BEGIN_VAL_OR_KEY;
+            break;
+        default:
+            return JSON_ERROR_PARSING;
+    }
+
+    return JSON_CONTINUE;
 }
 
 int handle_begin_value_or_key(json_parser *parser, const char c){
     switch (c){
         case '{': case '[':
-            parser->level++;
-            break;
+            parser->level++; break;
         case '"':
-            parser->state = JSON_STATE_KEY_OR_STR;
-            break;
+            parser->state = JSON_STATE_KEY_OR_STR; break;
         case '0' ... '9':
-            parser->state = JSON_STATE_INT_ELEM;
-            break;
-        case 't', 'f', 'n':
-            parser->state = JSON_STATE_SPECIAL_ELEM;
-            break;
+            parser->state = JSON_STATE_INT_ELEM; break;
+        case 't':
+            parser->state = JSON_STATE_TRUE_ELEM; break;
+        case 'f':
+            parser->state = JSON_STATE_FALSE_ELEM; break;
+        case 'n':
+            parser->state = JSON_STATE_NULL_ELEM; break;
         //skip White spaces
-        case ' ': case '\t': case '\r': case '\n': case: '\t':
+        case ' ': case '\t': case '\r': case '\n':
             break;
         default:
             return JSON_ERROR_PARSING;
@@ -64,14 +84,10 @@ int handle_int_elem(json_parser *parser, const char c){
         //TODO: add matching inside arrays
         case '0' ... '9':
             break;
-        case ']':
-            parser->level--;
-            parser->state = JSON_STATE_VAL_END;
+        case ']': case ',': case ' ': case '\t': case '\r': case '\n':
+            parser->state = JSON_STATE_END_VAL;
             parser->key_offset = 0;
-            break;
-        case ',':
-            parser->state = JSON_STATE_BEGIN_VAL_OR_KEY;
-            parser->key_offset = 0;
+            handle_end_val(parser, c);
             break;
         default:
             return JSON_ERROR_PARSING;
@@ -82,25 +98,25 @@ int handle_int_elem(json_parser *parser, const char c){
 
 int handle_special_elem(json_parser *parser, const char c){
     switch (c){
-        case ']':
-            parser->level--;
-            parser->state = JSON_STATE_VAL_END;
+        case ']': case ',': case ' ': case '\t': case '\r': case '\n':
+            parser->state = JSON_STATE_END_VAL;
             parser->key_offset = 0;
-            break;
-        case ',':
-            parser->state = JSON_STATE_BEGIN_VAL_OR_KEY;
-            parser->key_offset = 0;
-            break;
+            handle_end_val(parser, c);
         default:
+        {
             //check if c is part of a special literal
-            if !((state == JSON_STATE_TRUE_ELEM && offs < TRUE_VAL_LEN
+            size_t offs = parser->key_offset;
+            int state = parser->state;
+
+            if ( !(  (state == JSON_STATE_TRUE_ELEM && offs < TRUE_VAL_LEN
                     && c == TRUE_VAL[offs])
                   || (state == JSON_STATE_NULL_ELEM && offs < NULL_VAL_LEN
                     && c == NULL_VAL[offs])
                   || (state == JSON_STATE_FALSE_ELEM && offs < FALSE_VAL_LEN
-                    && c == FALSE_VAL[offs]))
+                    && c == FALSE_VAL[offs])) )
                 return JSON_ERROR_PARSING;
             parser->key_offset++;
+        }
     }
     return JSON_CONTINUE;
 }
@@ -108,8 +124,8 @@ int handle_special_elem(json_parser *parser, const char c){
 //TODO: ADD SAVE TO STORAGE == ADD ARRAY SUPPORT
 int handle_key_or_str(json_parser *parser, const char c){
     size_t i;
-    json_int_t *prev_int_match = int_matches;
-    json_str_t *prev_str_match = str_matches;
+    json_int_t *prev_int_match = parser->int_matches;
+    json_str_t *prev_str_match = parser->str_matches;
     json_int_t *int_match;
     json_str_t *str_match;
 
@@ -136,7 +152,7 @@ int handle_key_or_str(json_parser *parser, const char c){
                     // Note that keys must contain at least one char
                     // namely '\0'
 
-                    int_match = &int_matches[i];
+                    int_match = &parser->int_matches[i];
                     if ((int_match->match_upto_level == parser->level - 1)
                          && (c == int_match->key_addr[parser->level][0])){
                         int_match->next = parser->int_matches;
@@ -147,13 +163,13 @@ int handle_key_or_str(json_parser *parser, const char c){
 
             if (parser->n_strs > 0){
                 i = parser->n_strs;
-                parser->strs_matches = JSON_LIST_EMPTY;
+                parser->str_matches = JSON_LIST_EMPTY;
                 do {
                     --i;
                     // Note that keys must contain at least one char
                     // namely '\0'
 
-                    str_match = &str_matches[i];
+                    str_match = &parser->str_matches[i];
                     if ((str_match->match_upto_level == parser->level - 1)
                          && (c == str_match->key_addr[parser->level][0])){
                         str_match->next = parser->str_matches;
@@ -168,13 +184,26 @@ int handle_key_or_str(json_parser *parser, const char c){
             prev_int_match = int_match;
             for (;int_match != JSON_LIST_EMPTY;
                    int_match = int_match->next){
-                if (c != int_match->key_addr[parser->level][key_offset])
+                if (c != int_match->key_addr[parser->level][parser->key_offset])
                     if (prev_int_match == parser->int_matches)
                         parser->int_matches = int_match->next;
                     else
                         prev_int_match->next = int_match->next;
                 else
                     prev_int_match = int_match;
+            }
+
+            str_match = parser->int_matches;
+            prev_str_match = int_match;
+            for (;str_match != JSON_LIST_EMPTY;
+                   str_match = str_match->next){
+                if (c != str_match->key_addr[parser->level][parser->key_offset])
+                    if (prev_str_match == parser->str_matches)
+                        parser->str_matches = str_match->next;
+                    else
+                        prev_str_match->next = str_match->next;
+                else
+                    prev_str_match = str_match;
             }
         }
 
@@ -188,7 +217,7 @@ int handle_key_or_str_end(json_parser *parser, const char c){
     switch (c){
         //TODO ADD ARRAY SUPPORT
         //skip White spaces
-        case ' ': case '\t': case '\r': case '\n': case: '\t':
+        case ' ': case '\t': case '\r': case '\n':
             break;
         //str array element
         case ',':
@@ -216,7 +245,7 @@ int handle_type(json_parser *parser, const char c){
         //TODO ADD SPECIAL STORAGE SUPPORT
         //TODO ADD ARRAY SUPPORT
         //skip White spaces
-        case ' ': case '\t': case '\r': case '\n': case: '\t':
+        case ' ': case '\t': case '\r': case '\n':
             break;
         case '{': case '[':
             parser->state = JSON_STATE_BEGIN_VAL_OR_KEY;
@@ -246,16 +275,20 @@ int handle_type(json_parser *parser, const char c){
 int handle_int(json_parser *parser, const char c){
     if (parser->int_matches != JSON_LIST_EMPTY){
         int digit = c_to_int(c);
-        if (tmp == -1)
+        if (digit == -1)
             return JSON_ERROR_PARSING;
         parser->int_matches->storage *= 10;
         parser->int_matches->storage += digit;
     }
-    else
+    else{
+        parser->state = JSON_STATE_END_VAL;
         return handle_end_val(parser, c);
+    }
 }
 
 int handle_special(json_parser *parser, const char c){
+    int state = parser->state;
+    size_t offs = parser->key_offset;
     if ((state == JSON_STATE_TRUE && offs < TRUE_VAL_LEN
             && c == TRUE_VAL[offs])
           || (state == JSON_STATE_NULL && offs < NULL_VAL_LEN
@@ -263,8 +296,10 @@ int handle_special(json_parser *parser, const char c){
           || (state == JSON_STATE_FALSE && offs < FALSE_VAL_LEN
             && c == FALSE_VAL[offs]))
         return JSON_CONTINUE;
-    else
+    else{
+        parser->state = JSON_STATE_END_VAL;
         return handle_end_val(parser, c);
+    }
 
 }
 
@@ -272,41 +307,16 @@ int handle_str(json_parser *parser, const char c){
     if (parser->state != JSON_STATE_STR_ESCAPE && c == '\\')
         parser->state = JSON_STATE_STR_ESCAPE;
     else if (parser->state != JSON_STATE_STR_ESCAPE && c == '\"'){
-        if (parser->key_offset + 1 > str->storage_sz)
-            return JSON_ERROR_STORAGE_SIZE;
         parser->state = JSON_STATE_END_VAL;
-        parser->str_matches->storage[parser->key_offset] = '\0';
         parser->key_offset = 0;
+        handle_end_val(parser, c);
     }
     else if (parser->str_matches != JSON_LIST_EMPTY){
         json_str_t *str = parser->str_matches;
         if (parser->key_offset + 1 > str->storage_sz)
             return JSON_ERROR_STORAGE_SIZE;
-        str[key_offset] = c;
+        str[parser->key_offset] = c;
         parser->key_offset++;
-    }
-
-    return JSON_CONTINUE;
-}
-
-int handle_end_val(json_parser *parser, const char c){
-    switch (c){
-        //skip White spaces
-        case ' ': case '\t': case '\r': case '\n': case: '\t':
-            break;
-        case '}':
-            parser->level--;
-            if (level == 0)
-                return JSON_DONE;
-            break;
-        case ']':
-            parser->level--;
-            break;
-        case ',':
-            parser->state = JSON_STATE_BEGIN_VAL_OR_KEY;
-            break;
-        default:
-            return JSON_ERROR_PARSING;
     }
 
     return JSON_CONTINUE;
@@ -315,7 +325,7 @@ int handle_end_val(json_parser *parser, const char c){
 int handle_start(json_parser *parser, const char c){
     switch (c){
         //skip White spaces
-        case ' ': case '\t': case '\r': case '\n': case: '\t':
+        case ' ': case '\t': case '\r': case '\n':
             break;
         case '{':
             parser->state = JSON_STATE_BEGIN_VAL_OR_KEY
