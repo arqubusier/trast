@@ -157,7 +157,7 @@ int handle_key_or_str(json_parser *parser, const char c){
                     // namely '\0'
 
                     int_match = &parser->ints[i];
-                    if ((int_match->match_upto_level == parser->level)
+                    if ((int_match->match_upto_level == parser->level - 1)
                          && (c == int_match->key_addr[parser->level-1][0])){
                         int_match->next = parser->int_matches;
                         parser->int_matches = int_match;
@@ -174,7 +174,7 @@ int handle_key_or_str(json_parser *parser, const char c){
                     // namely '\0'
 
                     str_match = &parser->strs[i];
-                    if ((str_match->match_upto_level == parser->level)
+                    if ((str_match->match_upto_level == parser->level - 1)
                          && (c == str_match->key_addr[parser->level-1][0])){
                         str_match->next = parser->str_matches;
                         parser->str_matches = str_match;
@@ -188,11 +188,12 @@ int handle_key_or_str(json_parser *parser, const char c){
             prev_int_match = int_match;
             for (;int_match != JSON_LIST_EMPTY;
                    int_match = int_match->next){
-                if (c != int_match->key_addr[parser->level-1][parser->key_offset])
+                if (c != int_match->key_addr[parser->level-1][parser->key_offset]){
                     if (prev_int_match == parser->int_matches)
                         parser->int_matches = int_match->next;
                     else
                         prev_int_match->next = int_match->next;
+                }
                 else
                     prev_int_match = int_match;
             }
@@ -201,11 +202,12 @@ int handle_key_or_str(json_parser *parser, const char c){
             prev_str_match = str_match;
             for (;str_match != JSON_LIST_EMPTY;
                    str_match = str_match->next){
-                if (c != str_match->key_addr[parser->level-1][parser->key_offset])
+                if (c != str_match->key_addr[parser->level-1][parser->key_offset]){
                     if (prev_str_match == parser->str_matches)
                         parser->str_matches = str_match->next;
                     else
                         prev_str_match->next = str_match->next;
+                }
                 else
                     prev_str_match = str_match;
             }
@@ -233,6 +235,7 @@ int handle_key_or_str_end(json_parser *parser, const char c){
         case ']':
             parser->state = JSON_STATE_END_VAL;
             parser->key_offset = 0;
+            handle_end_val(parser, c);
             break;
         case ':':
             parser->state = JSON_STATE_TYPE;
@@ -285,6 +288,7 @@ int handle_type(json_parser *parser, const char c){
             break;
         case '{': case '[':
             parser->state = JSON_STATE_BEGIN_VAL_OR_KEY;
+            parser->level++;
             break;
         case '0' ... '9':
             parser->state = JSON_STATE_INT;
@@ -423,7 +427,7 @@ void json_ints_init(json_int_t *values, const char **key_addrs[],
         val->key_addr = key_addrs[i];
         val->storage = storages[i];
         val->next = &values[i+1];
-        val->match_upto_level = 1;
+        val->match_upto_level = 0;
     }
 
     /* NULL marks the end of the chained list */
@@ -431,7 +435,7 @@ void json_ints_init(json_int_t *values, const char **key_addrs[],
     val = &values[i];
     val->key_addr = key_addrs[i];
     val->storage = storages[i];
-    val->match_upto_level = 1;
+    val->match_upto_level = 0;
     val->next = NULL;
 }
 
@@ -447,7 +451,7 @@ void json_str_init(json_str_t *values, const char **key_addrs[],
         val->key_addr = key_addrs[i];
         val->storage = storages[i];
         val->storage_sz = strlen(storages[i]);
-        val->match_upto_level = 1;
+        val->match_upto_level = 0;
         val->next = &values[i+1];
     }
 
@@ -457,6 +461,6 @@ void json_str_init(json_str_t *values, const char **key_addrs[],
     val->key_addr = key_addrs[i];
     val->storage = storages[i];
     val->storage_sz = strlen(storages[i]);
-    val->match_upto_level = 1;
+    val->match_upto_level = 0;
     val->next = NULL;
 }
