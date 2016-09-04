@@ -46,7 +46,7 @@ struct json_int_t{
 
 
 typedef struct {
-	unsigned int level; //current address level
+	int level; //current address level
     size_t buff_offset;
     size_t key_offset;
     int state;

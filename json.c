@@ -141,6 +141,10 @@ int handle_key_or_str(json_parser *parser, const char c){
                 int_match = int_match->next){
             int_match->match_upto_level++;
         }
+        for (str_match = parser->str_matches; str_match != JSON_LIST_EMPTY;
+                str_match = str_match->next){
+            str_match->match_upto_level++;
+        }
 
         parser->key_offset = 0;
     }else{
@@ -249,7 +253,15 @@ int handle_key_or_str_end(json_parser *parser, const char c){
 }
 
 int handle_int(json_parser *parser, const char c){
-    if (parser->int_matches != JSON_LIST_EMPTY){
+    if (c==',' || c=='}'){
+        if (parser->int_matches != JSON_LIST_EMPTY){
+            parser->int_matches->match_upto_level = JSON_MATCH;
+            parser->int_matches = JSON_LIST_EMPTY;
+        }
+        parser->state = JSON_STATE_END_VAL;
+        return handle_end_val(parser, c);
+    }
+    else if (parser->int_matches != JSON_LIST_EMPTY){
         int digit = c_to_int(c);
         if (digit == -1)
             return JSON_ERROR_PARSING;
@@ -257,8 +269,7 @@ int handle_int(json_parser *parser, const char c){
         parser->int_matches->storage += digit;
     }
     else{
-        parser->state = JSON_STATE_END_VAL;
-        return handle_end_val(parser, c);
+        return JSON_ERROR_PARSING;
     }
 }
 
@@ -272,7 +283,7 @@ int handle_special(json_parser *parser, const char c){
           || (state == JSON_STATE_FALSE && offs < FALSE_VAL_LEN
             && c == FALSE_VAL[offs]))
         return JSON_CONTINUE;
-    else{
+    else if (c==',' || c=='}'){
         parser->state = JSON_STATE_END_VAL;
         return handle_end_val(parser, c);
     }
@@ -319,7 +330,10 @@ int handle_str(json_parser *parser, const char c){
     else if (parser->state != JSON_STATE_STR_ESCAPE && c == '\"'){
         parser->state = JSON_STATE_END_VAL;
         parser->key_offset = 0;
-        handle_end_val(parser, c);
+        if(parser->str_matches != JSON_LIST_EMPTY){
+            parser->str_matches->match_upto_level = JSON_MATCH;
+            parser->str_matches = JSON_LIST_EMPTY;
+        }
     }
     else if (parser->str_matches != JSON_LIST_EMPTY){
         json_str_t *str = parser->str_matches;
@@ -439,7 +453,7 @@ void json_ints_init(json_int_t *values, const char **key_addrs[],
     val->next = NULL;
 }
 
-void json_str_init(json_str_t *values, const char **key_addrs[],
+void json_strs_init(json_str_t *values, const char **key_addrs[],
                     char **storages, size_t n_vals){
     size_t i;
     if (n_vals == 0)
