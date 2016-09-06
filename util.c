@@ -1,8 +1,8 @@
 #include "util.h"
 #include <string.h>
 #include <stdio.h>
-//#include "esp/hwrand.h"
-//#include "sys/types.h"
+#include "esp/hwrand.h"
+#include "sys/types.h"
 
 
 const char BASE64_ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -37,22 +37,6 @@ int n_digits_l(long l){
     if (l <  100000000) return 8;
     if (l < 1000000000) return 9;
     return 10;
-}
-
-int c_to_int(const char c){
-    switch (c){
-        case '0': return 0;
-        case '1': return 1;
-        case '2': return 2;
-        case '3': return 3;
-        case '4': return 4;
-        case '5': return 5;
-        case '6': return 6;
-        case '7': return 7;
-        case '8': return 8;
-        case '9': return 9;
-        default: return -1;
-    }
 }
 
 size_t strcpy_limit(char* dst, const char* src, size_t limit){
@@ -162,7 +146,6 @@ void base64_pad(char* src, const int src_len, const int pad_len){
     }
 }
 
-/*
 void alpha_num_rand(char* buf, const int buf_len){
     hwrand_fill((uint8_t *)buf, buf_len);
     int i = 0;
@@ -170,7 +153,6 @@ void alpha_num_rand(char* buf, const int buf_len){
         buf[i] =  ALPHA_NUM[buf[i] % ALPHA_NUM_LEN];
     }
 }
-*/
 
 void print_hex(unsigned char* buf, uint buf_len){
     int i=0;

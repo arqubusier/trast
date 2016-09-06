@@ -46,8 +46,6 @@
 #include "mbedtls/certs.h"
 #include "mbedtls/md.h"
 
-//#include <time.h>
-
 /* Add extras/sntp component to makefile for this include to work */
 #include <sntp.h>
 #include <time.h>
@@ -59,9 +57,7 @@
 #define vTaskDelayMs(ms)	vTaskDelay((ms)/portTICK_RATE_MS)
 #define UNUSED_ARG(x)	(void)x
 
-#define WEB_PORT "443"
-#define WEB_SERVER "api.twitter.com"
-
+#define MSG_BUFFER_SIZE 2*1024
 
 /* MBEDTLS_DEBUG_C disabled by default to save substantial bloating of
  * firmware, define it in
@@ -74,7 +70,7 @@
 /* Increase this value to see more TLS debug details,
    0 prints nothing, 1 will print any errors, 4 will print _everything_
 */
-#define DEBUG_LEVEL 4
+#define DEBUG_LEVEL 0
 
 static void my_debug(void *ctx, int level,
                      const char *file, int line,
@@ -99,7 +95,7 @@ static void my_debug(void *ctx, int level,
 void setup_home_base(){
     char head[] = "GET&https%3A%2F%2Fapi.twitter.com%2F1.1%2Fstatuses%2Fhome_timeline.json&";
     char count[] = "count%3D";
-    int count_val = 1;
+    int count_val = 3;
     char c_key[] = "%26oauth_consumer_key%3D";
     char c_key_val[] = OAUTH_CONSUMER_KEY;
     char nonce[] =  "%26oauth_nonce%3D";
@@ -159,19 +155,6 @@ void setup_home_auth(){
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_SIGNATURE, sign);
     substr_set_param_str(HOME_AUTH, HOME_AUTH_OAUTH_SIGNATURE_VAL, sign_val);
     substr_set_param_str(HOME_AUTH, HOME_AUTH_BLANK_LINE, blank);
-}
-
-
-void setup_home_start(){
-    char head[] = "GET /1.1/statuses/home_timeline.json";
-    char count[] = "?count=";
-    char host[] = " HTTP/1.1\r\nHost: " WEB_SERVER "\r\n";
-    int count_val = 1;
-    substr_init(HOME_START);
-    substr_set_param_str(HOME_START, HOME_START_HEAD, head);
-    substr_set_param_str(HOME_START, HOME_START_COUNT, count);
-    substr_set_param_int(HOME_START, HOME_START_COUNT_VAL, count_val);
-    substr_set_param_str(HOME_START, HOME_START_HOST, host);
 }
 
 void setup_sign_key(){
@@ -279,7 +262,7 @@ void http_get_task(void *pvParameters)
 	printf("SNTP config complete\n");
 
     uint32_t flags;
-    unsigned char buf[1024];
+    unsigned char buf[MSG_BUFFER_SIZE];
     const char *pers = "ssl_client1";
 
     mbedtls_entropy_context entropy;
@@ -331,7 +314,7 @@ void http_get_task(void *pvParameters)
             xPortGetFreeHeapSize());
 
     /* Hostname set here should match CN in server certificate */
-    if((ret = mbedtls_ssl_set_hostname(&ssl, WEB_SERVER)) != 0)
+    if((ret = mbedtls_ssl_set_hostname(&ssl, TWITTER_SERVER)) != 0)
     {
         printf(" failed\n  ! mbedtls_ssl_set_hostname returned %d\n\n", ret);
         while(1) {} /* todo: replace with abort() */
@@ -356,6 +339,7 @@ void http_get_task(void *pvParameters)
     mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
     mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
     mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
+    mbedtls_ssl_conf_max_frag_len(&conf, MBEDTLS_SSL_MAX_FRAG_LEN_2048);
 #ifdef MBEDTLS_DEBUG_C
     mbedtls_debug_set_threshold(DEBUG_LEVEL);
     mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
@@ -369,7 +353,7 @@ void http_get_task(void *pvParameters)
     ip_addr_t host_ip;
     do {
         vTaskDelay(500 / portTICK_RATE_MS);
-        dns_err = netconn_gethostbyname(WEB_SERVER, &host_ip);
+        dns_err = netconn_gethostbyname(TWITTER_SERVER, &host_ip);
     } while(dns_err != ERR_OK);
     printf("done.\n");
 
@@ -393,10 +377,10 @@ void http_get_task(void *pvParameters)
         /*
          * 1. Start the connection
          */
-        printf("  . Connecting to %s:%s...", WEB_SERVER, WEB_PORT);
+        printf("  . Connecting to %s:%s...", TWITTER_SERVER, TWITTER_PORT);
 
-        if((ret = mbedtls_net_connect(&server_fd, WEB_SERVER,
-                                      WEB_PORT, MBEDTLS_NET_PROTO_TCP)) != 0)
+        if((ret = mbedtls_net_connect(&server_fd, TWITTER_SERVER,
+                                      TWITTER_PORT, MBEDTLS_NET_PROTO_TCP)) != 0)
         {
             printf(" failed\n  ! mbedtls_net_connect returned %d\n\n", ret);
             goto exit;
@@ -441,6 +425,11 @@ void http_get_task(void *pvParameters)
             goto exit;
         }
 
+        /*
+         * The twitter servers return correct size
+         */
+        size_t buff_sz_result = mbedtls_ssl_get_max_frag_len(&ssl);
+        printf("Server decided the size: %d\n", buff_sz_result);
 
         /*
          * Update twitter parameters
@@ -453,7 +442,7 @@ void http_get_task(void *pvParameters)
         printf("  > Write to server:");
 
         int ids[] = {HOME_START, HOME_AUTH};
-        int len = substr_combine((char*) buf, ids, 2, 1024); 
+        int len = substr_combine((char*) buf, ids, 2, MSG_BUFFER_SIZE); 
         printf("MSGLEN: %d\s\n", len);
         printf("MSG: %s\n", buf);
         if(len == -1)
@@ -484,7 +473,7 @@ void http_get_task(void *pvParameters)
         {
             len = sizeof(buf) - 1;
             memset(buf, 0, sizeof(buf));
-            ret = mbedtls_ssl_read(&ssl, buf, len);
+            ret = mbedtls_ssl_read(&ssl, buf, 2048);
 
             if(ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE)
                 continue;
@@ -516,7 +505,7 @@ void http_get_task(void *pvParameters)
         mbedtls_ssl_free(&ssl);
         mbedtls_ssl_init(&ssl);
         /* Hostname set here should match CN in server certificate */
-        if((ret = mbedtls_ssl_set_hostname(&ssl, WEB_SERVER)) != 0)
+        if((ret = mbedtls_ssl_set_hostname(&ssl, TWITTER_SERVER)) != 0)
         {
             printf(" failed\n  ! mbedtls_ssl_set_hostname returned %d\n\n",
                     ret);

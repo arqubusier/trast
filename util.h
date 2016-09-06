@@ -15,7 +15,6 @@
 typedef unsigned int uint;
 int n_digits_i(int i);
 int n_digits_l(long l);
-int c_to_int(const char c);
 
 /*
  * copies a string excluding the null character.
