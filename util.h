@@ -22,11 +22,11 @@ int n_digits_l(long l);
  */
 size_t strcpy_limit(char* dst, const char* src, size_t limit);
 
-size_t percent_encode_size(const char* src);
-void percent_encode(char *dst, const char *src);
+size_t percent_encode_size(const char* src, size_t src_len);
+void percent_encode(char *dst, const char *src, size_t src_len);
 size_t base64_pad_len(const int src_len);
 void base64_pad(char* src, const int src_len, const int pad_len);
-void alpha_num_rand(char* buf, const int buf_len);
+void alpha_num_rand(char* buf, size_t buf_len);
 void base64_encode(char* dst, size_t dst_len,
                    const unsigned char* src, size_t src_len);
 void print_hex(unsigned char* buf, uint buf_len);

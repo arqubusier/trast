@@ -47,8 +47,7 @@ size_t strcpy_limit(char* dst, const char* src, size_t limit){
     return i;
 };
 
-size_t percent_encode_size(const char* src){
-    size_t src_sz = strlen(src);
+size_t percent_encode_size(const char* src, const size_t src_sz){
     int i=0;
     size_t total_size=0;
     for (; i < src_sz; i++){
@@ -68,8 +67,7 @@ size_t percent_encode_size(const char* src){
 }
 
 /* only works for ascii */
-void percent_encode(char *dst, const char *src){
-    size_t src_sz = strlen(src);
+void percent_encode(char *dst, const char *src, const size_t src_sz){
     int i=0, offs=0;
     for (; i < src_sz; i++){
         char c = src[i];
@@ -146,7 +144,7 @@ void base64_pad(char* src, const int src_len, const int pad_len){
     }
 }
 
-void alpha_num_rand(char* buf, const int buf_len){
+void alpha_num_rand(char* buf, size_t buf_len){
     hwrand_fill((uint8_t *)buf, buf_len);
     int i = 0;
     for (;i < buf_len; i++){
